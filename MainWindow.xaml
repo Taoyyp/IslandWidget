@@ -1,0 +1,563 @@
+<Window x:Class="IslandWidget.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ui="clr-namespace:IslandWidget.UI"
+        Title="IslandWidget"
+        Width="560" Height="390"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False"
+        Topmost="True"
+        AllowDrop="True"
+        UseLayoutRounding="True"
+        SnapsToDevicePixels="True"
+        FontFamily="Segoe UI Variable Text, Microsoft YaHei UI, Segoe UI">
+
+    <Grid x:Name="RootCanvas" Background="Transparent"
+          MouseEnter="RootCanvas_MouseEnter"
+          MouseLeave="RootCanvas_MouseLeave"
+          DragEnter="RootCanvas_DragEnter"
+          DragOver="RootCanvas_DragOver"
+          Drop="RootCanvas_Drop">
+
+        <!-- Hardware-accelerated Wisland Liquid Frosted Glass Surface -->
+        <ui:LiquidSurfaceControl x:Name="LiquidSurface" IsHitTestVisible="False"/>
+
+        <!-- Interactive Island Body Container (positioned dynamically to match LiquidSurface bodyRect) -->
+        <Grid x:Name="BodyContainer"
+              HorizontalAlignment="Left"
+              VerticalAlignment="Top"
+              Width="460" Height="36"
+              Background="#01000000"
+              MouseLeftButtonDown="BodyContainer_MouseLeftButtonDown"
+              MouseMove="BodyContainer_MouseMove"
+              MouseLeftButtonUp="BodyContainer_MouseLeftButtonUp"
+              MouseRightButtonUp="BodyContainer_MouseRightButtonUp"
+              MouseWheel="BodyContainer_MouseWheel">
+
+            <!-- ==================== COLLAPSED CAPSULE LAYER ==================== -->
+            <Grid x:Name="CollapsedLayer" Margin="12,0,12,0" VerticalAlignment="Center">
+                <!-- Mode 0: Overview (AI Quota Rings + CPU/GPU/Net + Wireless Battery + Time) -->
+                <StackPanel x:Name="CollapsedOverviewPanel" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center">
+                    <ui:QuotaRingControl x:Name="RingAgy" Width="21" Height="21" Margin="0,0,5,0" ToolTip="Antigravity 额度"/>
+                    <ui:QuotaRingControl x:Name="RingCodex" Width="21" Height="21" Margin="0,0,5,0" ToolTip="Codex 额度"/>
+                    <ui:QuotaRingControl x:Name="RingDsh" Width="21" Height="21" Margin="0,0,9,0" ToolTip="DSH 余额"/>
+
+                    <Border x:Name="ColDivider1" Width="1" Height="14" Background="#33FFFFFF" Margin="0,0,9,0"/>
+
+                    <TextBlock x:Name="ColHwText" Text="CPU 0% · GPU 0%" FontSize="11.5" FontWeight="Medium" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                    <TextBlock x:Name="ColNetText" Text="↓0K/s" FontSize="11.5" VerticalAlignment="Center" Margin="0,0,8,0"/>
+
+                    <Border x:Name="ColBatBadge" CornerRadius="9" Padding="6,2" Margin="0,0,8,0" Background="#22FFFFFF" VerticalAlignment="Center">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock x:Name="ColBatIcon" Text="&#xE962;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="11" VerticalAlignment="Center" Margin="0,0,3,0"/>
+                            <TextBlock x:Name="ColBatText" Text="—" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+
+                    <TextBlock x:Name="ColTimeText" Text="18:00" FontSize="12" FontWeight="Bold" VerticalAlignment="Center"/>
+                </StackPanel>
+
+                <!-- Mode 1: Clock & Weather -->
+                <StackPanel x:Name="CollapsedClockPanel" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center" Visibility="Collapsed">
+                    <TextBlock x:Name="ClockBigTime" Text="18:00" FontSize="13.5" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                    <TextBlock x:Name="ClockDateText" Text="11/24 周二" FontSize="11.5" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                    <Border Width="1" Height="13" Background="#33FFFFFF" Margin="0,0,10,0"/>
+                    <TextBlock x:Name="ClockWeatherGlyph" Text="☀" FontSize="13" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                    <TextBlock x:Name="ClockWeatherText" Text="14°C 晴" FontSize="12" FontWeight="Medium" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                    <Ellipse x:Name="ClockHealthDot" Width="7" Height="7" Fill="#34D399" VerticalAlignment="Center" ToolTip="所有服务状态正常"/>
+                </StackPanel>
+
+                <!-- Mode 2: Media & Synchronized Scrolling Lyrics -->
+                <Grid x:Name="CollapsedMediaPanel" Visibility="Collapsed" VerticalAlignment="Center">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <Border Grid.Column="0" Width="22" Height="22" CornerRadius="6" ClipToBounds="True" Background="#28FFFFFF" Margin="0,0,8,0" VerticalAlignment="Center">
+                        <Grid>
+                            <TextBlock Text="&#xE8D6;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="11" HorizontalAlignment="Center" VerticalAlignment="Center" Opacity="0.7"/>
+                            <Image x:Name="ColCoverImg" Stretch="UniformToFill"/>
+                        </Grid>
+                    </Border>
+                    <TextBlock x:Name="ColLyricText" Grid.Column="1" Text="暂无正在播放的音乐" FontSize="12" FontWeight="Medium"
+                               VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="0,0,8,0"/>
+                    <Button x:Name="ColPlayPauseBtn" Grid.Column="2" Content="&#xE768;"
+                            FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="11"
+                            Width="24" Height="24" Click="MediaPlayPause_Click"
+                            Background="#26FFFFFF" BorderThickness="0" Cursor="Hand" ToolTip="播放/暂停">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border Background="{TemplateBinding Background}" CornerRadius="12">
+                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                            </ControlTemplate>
+                        </Button.Template>
+                    </Button>
+                </Grid>
+
+                <!-- Mode 3: Wisland Glowing Eye-Tracking Pet Avatar -->
+                <StackPanel x:Name="CollapsedPetPanel" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center" Visibility="Collapsed">
+                    <ui:PetFaceControl x:Name="CollapsedPetFace" Width="48" Height="28" Margin="0,0,10,0"/>
+                    <TextBlock x:Name="PetTimeWeatherText" Text="18:00 · ☀ 14°C" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                </StackPanel>
+            </Grid>
+
+            <!-- ==================== EXPANDED DASHBOARD LAYER ==================== -->
+            <Grid x:Name="ExpandedLayer" Margin="14,12,14,12" Visibility="Collapsed" Opacity="0">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <!-- Top Navigation & Quick Actions -->
+                <Grid Grid.Row="0" Margin="0,0,0,10">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- 5 Clean Module Pills (Translation & Stocks completely removed!) -->
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <Button x:Name="TabBtn0" Content="额度" Tag="0" Click="TabBtn_Click" Margin="0,0,4,0" Padding="10,5" FontSize="12" FontWeight="SemiBold" Cursor="Hand" BorderThickness="0"/>
+                        <Button x:Name="TabBtn1" Content="硬件·电量" Tag="1" Click="TabBtn_Click" Margin="0,0,4,0" Padding="10,5" FontSize="12" FontWeight="SemiBold" Cursor="Hand" BorderThickness="0"/>
+                        <Button x:Name="TabBtn2" Content="音乐·天气" Tag="2" Click="TabBtn_Click" Margin="0,0,4,0" Padding="10,5" FontSize="12" FontWeight="SemiBold" Cursor="Hand" BorderThickness="0"/>
+                        <Button x:Name="TabBtn3" Content="剪贴·中转" Tag="3" Click="TabBtn_Click" Margin="0,0,4,0" Padding="10,5" FontSize="12" FontWeight="SemiBold" Cursor="Hand" BorderThickness="0"/>
+                        <Button x:Name="TabBtn4" Content="控制·双屏" Tag="4" Click="TabBtn_Click" Padding="10,5" FontSize="12" FontWeight="SemiBold" Cursor="Hand" BorderThickness="0"/>
+                    </StackPanel>
+
+                    <!-- Header Action Icons -->
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                        <Button x:Name="PinBtn" Content="&#xE718;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="12"
+                                Width="26" Height="26" Margin="0,0,4,0" Click="PinBtn_Click" Cursor="Hand" BorderThickness="0" ToolTip="固定展开面板（不自动收起）"/>
+                        <Button x:Name="SwitchScreenBtn" Content="&#xE7F4;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="12"
+                                Width="26" Height="26" Margin="0,0,4,0" Click="SwitchScreenBtn_Click" Cursor="Hand" BorderThickness="0" ToolTip="一键在左主屏 / 右副屏之间切换"/>
+                        <Button x:Name="ThemeQuickBtn" Content="&#xE790;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="12"
+                                Width="26" Height="26" Margin="0,0,4,0" Click="ThemeQuickBtn_Click" Cursor="Hand" BorderThickness="0" ToolTip="切换毛玻璃主题 (深色/浅色/胭脂/晴空)"/>
+                        <Button x:Name="OpenSettingsBtn" Content="&#xE713;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="12"
+                                Width="26" Height="26" Margin="0,0,4,0" Click="OpenSettingsBtn_Click" Cursor="Hand" BorderThickness="0" ToolTip="打开详细设置"/>
+                        <Button x:Name="CollapseNowBtn" Content="&#xE70E;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="12"
+                                Width="26" Height="26" Click="CollapseNowBtn_Click" Cursor="Hand" BorderThickness="0" ToolTip="立即收起"/>
+                    </StackPanel>
+                </Grid>
+
+                <!-- ==================== PAGE 0: AI QUOTAS ==================== -->
+                <Grid x:Name="PageQuotas" Grid.Row="1">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Card 1: Antigravity -->
+                    <Border x:Name="CardAgy" Grid.Column="0" CornerRadius="12" Padding="11" Margin="0,0,6,0" BorderThickness="1">
+                        <StackPanel>
+                            <DockPanel Margin="0,0,0,8">
+                                <Border Width="22" Height="22" CornerRadius="6" Background="#33A78BFA" Margin="0,0,7,0">
+                                    <TextBlock Text="A" Foreground="#C4B5FD" FontWeight="Bold" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <StackPanel>
+                                    <TextBlock Text="Antigravity" FontWeight="Bold" FontSize="12.5"/>
+                                    <TextBlock x:Name="AgySubText" Text="Gemini" FontSize="10.5" Opacity="0.65"/>
+                                </StackPanel>
+                            </DockPanel>
+
+                            <TextBlock x:Name="AgyRow1Label" Text="5 小时剩余" FontSize="11" Opacity="0.75"/>
+                            <DockPanel Margin="0,2,0,3">
+                                <TextBlock x:Name="AgyRow1Val" Text="—" FontSize="17" FontWeight="Bold"/>
+                                <TextBlock x:Name="AgyRow1Reset" Text="" FontSize="10" Opacity="0.6" HorizontalAlignment="Right" VerticalAlignment="Bottom"/>
+                            </DockPanel>
+                            <ProgressBar x:Name="AgyBar1" Height="5" Minimum="0" Maximum="100" Value="0" Foreground="#A78BFA" Background="#22FFFFFF" BorderThickness="0" Margin="0,0,0,10"/>
+
+                            <TextBlock x:Name="AgyRow2Label" Text="本周剩余" FontSize="11" Opacity="0.75"/>
+                            <DockPanel Margin="0,2,0,3">
+                                <TextBlock x:Name="AgyRow2Val" Text="—" FontSize="15" FontWeight="SemiBold"/>
+                                <TextBlock x:Name="AgyRow2Reset" Text="" FontSize="10" Opacity="0.6" HorizontalAlignment="Right" VerticalAlignment="Bottom"/>
+                            </DockPanel>
+                            <ProgressBar x:Name="AgyBar2" Height="5" Minimum="0" Maximum="100" Value="0" Foreground="#8B5CF6" Background="#22FFFFFF" BorderThickness="0"/>
+
+                            <TextBlock x:Name="AgyStatusNote" Text="" FontSize="10" Opacity="0.65" TextWrapping="Wrap" Margin="0,8,0,0"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Card 2: Codex -->
+                    <Border x:Name="CardCodex" Grid.Column="1" CornerRadius="12" Padding="11" Margin="3,0,3,0" BorderThickness="1">
+                        <StackPanel>
+                            <DockPanel Margin="0,0,0,8">
+                                <Border Width="22" Height="22" CornerRadius="6" Background="#3334D399" Margin="0,0,7,0">
+                                    <TextBlock Text="C" Foreground="#6EE7B7" FontWeight="Bold" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <StackPanel>
+                                    <TextBlock Text="Codex" FontWeight="Bold" FontSize="12.5"/>
+                                    <TextBlock x:Name="CodexSubText" Text="ChatGPT" FontSize="10.5" Opacity="0.65"/>
+                                </StackPanel>
+                            </DockPanel>
+
+                            <TextBlock Text="5 小时剩余" FontSize="11" Opacity="0.75"/>
+                            <DockPanel Margin="0,2,0,3">
+                                <TextBlock x:Name="CodexRow1Val" Text="—" FontSize="17" FontWeight="Bold"/>
+                                <TextBlock x:Name="CodexRow1Reset" Text="" FontSize="10" Opacity="0.6" HorizontalAlignment="Right" VerticalAlignment="Bottom"/>
+                            </DockPanel>
+                            <ProgressBar x:Name="CodexBar1" Height="5" Minimum="0" Maximum="100" Value="0" Foreground="#34D399" Background="#22FFFFFF" BorderThickness="0" Margin="0,0,0,10"/>
+
+                            <TextBlock Text="7 天剩余" FontSize="11" Opacity="0.75"/>
+                            <DockPanel Margin="0,2,0,3">
+                                <TextBlock x:Name="CodexRow2Val" Text="—" FontSize="15" FontWeight="SemiBold"/>
+                                <TextBlock x:Name="CodexRow2Reset" Text="" FontSize="10" Opacity="0.6" HorizontalAlignment="Right" VerticalAlignment="Bottom"/>
+                            </DockPanel>
+                            <ProgressBar x:Name="CodexBar2" Height="5" Minimum="0" Maximum="100" Value="0" Foreground="#10B981" Background="#22FFFFFF" BorderThickness="0"/>
+
+                            <TextBlock x:Name="CodexStatusNote" Text="" FontSize="10" Opacity="0.65" TextWrapping="Wrap" Margin="0,8,0,0"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Card 3: DSH -->
+                    <Border x:Name="CardDsh" Grid.Column="2" CornerRadius="12" Padding="11" Margin="6,0,0,0" BorderThickness="1">
+                        <StackPanel>
+                            <DockPanel Margin="0,0,0,8">
+                                <Border Width="22" Height="22" CornerRadius="6" Background="#3360A5FA" Margin="0,0,7,0">
+                                    <TextBlock Text="¥" Foreground="#93C5FD" FontWeight="Bold" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <StackPanel>
+                                    <TextBlock Text="DSH 余额" FontWeight="Bold" FontSize="12.5"/>
+                                    <TextBlock Text="DeepSeek" FontSize="10.5" Opacity="0.65"/>
+                                </StackPanel>
+                            </DockPanel>
+
+                            <TextBlock Text="可用总余额" FontSize="11" Opacity="0.75"/>
+                            <TextBlock x:Name="DshBalanceVal" Text="—" FontSize="20" FontWeight="Bold" Margin="0,3,0,8"/>
+
+                            <DockPanel Margin="0,0,0,5">
+                                <TextBlock Text="赠送余额" FontSize="11" Opacity="0.7"/>
+                                <TextBlock x:Name="DshBonusVal" Text="—" FontSize="11.5" FontWeight="SemiBold" HorizontalAlignment="Right"/>
+                            </DockPanel>
+                            <DockPanel Margin="0,0,0,6">
+                                <TextBlock Text="累计消费" FontSize="11" Opacity="0.7"/>
+                                <TextBlock x:Name="DshSpentVal" Text="—" FontSize="11.5" FontWeight="SemiBold" HorizontalAlignment="Right"/>
+                            </DockPanel>
+
+                            <TextBlock x:Name="DshStatusNote" Text="原生直连 · 零 Node 进程" FontSize="10" Opacity="0.65" TextWrapping="Wrap" Margin="0,6,0,0"/>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+
+                <!-- ==================== PAGE 1: HARDWARE & WIRELESS BATTERY ==================== -->
+                <Grid x:Name="PageHardware" Grid.Row="1" Visibility="Collapsed">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- 4-Card Live Telemetry Strip -->
+                    <UniformGrid Grid.Row="0" Columns="4" Margin="0,0,0,8">
+                        <Border x:Name="HwCardCpu" CornerRadius="10" Padding="9,7" Margin="0,0,5,0" BorderThickness="1">
+                            <StackPanel>
+                                <TextBlock Text="CPU 占用" FontSize="10.5" Opacity="0.7"/>
+                                <TextBlock x:Name="HwCpuBig" Text="0%" FontSize="17" FontWeight="Bold" Margin="0,2,0,4"/>
+                                <ProgressBar x:Name="HwCpuBar" Height="4" Minimum="0" Maximum="100" Foreground="#38BDF8" Background="#22FFFFFF" BorderThickness="0"/>
+                            </StackPanel>
+                        </Border>
+                        <Border x:Name="HwCardRam" CornerRadius="10" Padding="9,7" Margin="2,0,3,0" BorderThickness="1">
+                            <StackPanel>
+                                <TextBlock x:Name="HwRamSub" Text="内存 0/0G" FontSize="10.5" Opacity="0.7"/>
+                                <TextBlock x:Name="HwRamBig" Text="0%" FontSize="17" FontWeight="Bold" Margin="0,2,0,4"/>
+                                <ProgressBar x:Name="HwRamBar" Height="4" Minimum="0" Maximum="100" Foreground="#A78BFA" Background="#22FFFFFF" BorderThickness="0"/>
+                            </StackPanel>
+                        </Border>
+                        <Border x:Name="HwCardGpu" CornerRadius="10" Padding="9,7" Margin="3,0,2,0" BorderThickness="1">
+                            <StackPanel>
+                                <TextBlock x:Name="HwGpuSub" Text="GPU" FontSize="10.5" Opacity="0.7" TextTrimming="CharacterEllipsis"/>
+                                <DockPanel Margin="0,2,0,4">
+                                    <TextBlock x:Name="HwGpuBig" Text="0%" FontSize="17" FontWeight="Bold"/>
+                                    <TextBlock x:Name="HwGpuTemp" Text="" FontSize="10.5" Opacity="0.75" HorizontalAlignment="Right" VerticalAlignment="Bottom"/>
+                                </DockPanel>
+                                <ProgressBar x:Name="HwGpuBar" Height="4" Minimum="0" Maximum="100" Foreground="#34D399" Background="#22FFFFFF" BorderThickness="0"/>
+                            </StackPanel>
+                        </Border>
+                        <Border x:Name="HwCardNet" CornerRadius="10" Padding="9,7" Margin="5,0,0,0" BorderThickness="1">
+                            <StackPanel>
+                                <TextBlock Text="实时网速" FontSize="10.5" Opacity="0.7"/>
+                                <TextBlock x:Name="HwNetDown" Text="↓ 0 B/s" FontSize="12.5" FontWeight="Bold" Foreground="#34D399" Margin="0,3,0,1"/>
+                                <TextBlock x:Name="HwNetUp" Text="↑ 0 B/s" FontSize="11" Opacity="0.8"/>
+                            </StackPanel>
+                        </Border>
+                    </UniformGrid>
+
+                    <!-- Wireless & Bluetooth Devices Battery List -->
+                    <Border x:Name="HwCardDevices" Grid.Row="1" CornerRadius="11" Padding="10,8" BorderThickness="1">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <DockPanel Grid.Row="0" Margin="0,0,0,6">
+                                <TextBlock Text="🔋 蓝牙与 2.4G 无线设备电量" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                <Button Content="刷新电量" Padding="8,2" FontSize="11" HorizontalAlignment="Right" Click="RefreshBattery_Click" Background="#26FFFFFF" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Window}}" BorderThickness="0" Cursor="Hand"/>
+                            </DockPanel>
+                            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                                <StackPanel x:Name="WirelessDevicesList"/>
+                            </ScrollViewer>
+                        </Grid>
+                    </Border>
+                </Grid>
+
+                <!-- ==================== PAGE 2: MUSIC LYRICS + WEATHER + PET ==================== -->
+                <Grid x:Name="PageMediaWeather" Grid.Row="1" Visibility="Collapsed">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="1.22*"/>
+                        <ColumnDefinition Width="0.95*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Left: Music & Synchronized Lyrics -->
+                    <Border x:Name="MediaCard" Grid.Column="0" CornerRadius="12" Padding="12" Margin="0,0,6,0" BorderThickness="1">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <Grid Grid.Row="0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Border Width="48" Height="48" CornerRadius="10" ClipToBounds="True" Background="#24FFFFFF" Margin="0,0,10,0">
+                                    <Grid>
+                                        <TextBlock Text="&#xE8D6;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="20" HorizontalAlignment="Center" VerticalAlignment="Center" Opacity="0.5"/>
+                                        <Image x:Name="ExpCoverImg" Stretch="UniformToFill"/>
+                                    </Grid>
+                                </Border>
+                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                    <TextBlock x:Name="ExpSongTitle" Text="暂无正在播放的媒体" FontSize="13.5" FontWeight="Bold" TextTrimming="CharacterEllipsis"/>
+                                    <TextBlock x:Name="ExpSongArtist" Text="支持网易云 / QQ音乐 / 浏览器视频 (SMTC)" FontSize="11" Opacity="0.7" TextTrimming="CharacterEllipsis" Margin="0,2,0,0"/>
+                                    <TextBlock x:Name="ExpMediaAppBadge" Text="" FontSize="10" Opacity="0.55" Margin="0,2,0,0"/>
+                                </StackPanel>
+                            </Grid>
+
+                            <!-- Dual-line Lyric Stage -->
+                            <StackPanel Grid.Row="1" VerticalAlignment="Center" Margin="0,8,0,8">
+                                <TextBlock x:Name="ExpLyricMain" Text="♪ 播放音乐时自动同步滚动歌词" FontSize="13" FontWeight="SemiBold" TextAlignment="Center" TextWrapping="Wrap"/>
+                                <TextBlock x:Name="ExpLyricTrans" Text="" FontSize="11" Opacity="0.72" TextAlignment="Center" TextWrapping="Wrap" Margin="0,3,0,0"/>
+                            </StackPanel>
+
+                            <!-- Progress + Controls -->
+                            <StackPanel Grid.Row="2">
+                                <ProgressBar x:Name="ExpMediaProgress" Height="4" Minimum="0" Maximum="100" Value="0" Foreground="#3B82F6" Background="#24FFFFFF" BorderThickness="0" Margin="0,0,0,8"/>
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                    <Button Content="&#xE892;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" Width="32" Height="28" Margin="0,0,10,0" Click="MediaPrev_Click" Background="#22FFFFFF" BorderThickness="0" Cursor="Hand"/>
+                                    <Button x:Name="ExpPlayPauseBtn" Content="&#xE768;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" Width="38" Height="28" Margin="0,0,10,0" Click="MediaPlayPause_Click" Background="#3B82F6" Foreground="White" BorderThickness="0" Cursor="Hand"/>
+                                    <Button Content="&#xE893;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" Width="32" Height="28" Click="MediaNext_Click" Background="#22FFFFFF" BorderThickness="0" Cursor="Hand"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <!-- Right: Open-Meteo Weather + Interactive Pet Avatar -->
+                    <Grid Grid.Column="1" Margin="4,0,0,0">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        <Border x:Name="WeatherCard" Grid.Row="0" CornerRadius="12" Padding="11,9" Margin="0,0,0,6" BorderThickness="1">
+                            <StackPanel>
+                                <DockPanel>
+                                    <TextBlock x:Name="ExpWeatherCity" Text="北京" FontSize="12.5" FontWeight="Bold"/>
+                                    <TextBlock x:Name="ExpWeatherHum" Text="湿度 —%" FontSize="10.5" Opacity="0.65" HorizontalAlignment="Right"/>
+                                </DockPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,4,0,6">
+                                    <TextBlock x:Name="ExpWeatherGlyph" Text="☀" FontSize="22" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                    <TextBlock x:Name="ExpWeatherTemp" Text="14°C" FontSize="20" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                    <TextBlock x:Name="ExpWeatherDesc" Text="晴" FontSize="11.5" Opacity="0.8" VerticalAlignment="Bottom" Margin="0,0,0,3"/>
+                                </StackPanel>
+                                <ItemsControl x:Name="WeatherForecastList">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <DockPanel Margin="0,1.5,0,1.5">
+                                                <TextBlock Text="{Binding DateLabel}" Width="38" FontSize="10.5" Opacity="0.75"/>
+                                                <TextBlock Text="{Binding Glyph}" Width="20" FontSize="11"/>
+                                                <TextBlock Text="{Binding Desc}" FontSize="10.5" Opacity="0.75"/>
+                                                <TextBlock HorizontalAlignment="Right" FontSize="10.5" FontWeight="Medium">
+                                                    <Run Text="{Binding MinC, Mode=OneWay}"/><Run Text="°~"/><Run Text="{Binding MaxC, Mode=OneWay}"/><Run Text="°"/>
+                                                </TextBlock>
+                                            </DockPanel>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Wisland Cute Pet Interactive Box -->
+                        <Border x:Name="PetCard" Grid.Row="1" CornerRadius="12" Padding="10,6" BorderThickness="1">
+                            <DockPanel>
+                                <ui:PetFaceControl x:Name="ExpandedPetFace" Width="62" Height="34"/>
+                                <StackPanel VerticalAlignment="Center" Margin="8,0,0,0">
+                                    <TextBlock Text="灵动小形象" FontSize="11.5" FontWeight="SemiBold"/>
+                                    <TextBlock Text="移近互动 · 点击捏脸 · 滚轮可设收起态" FontSize="10" Opacity="0.65" TextWrapping="Wrap"/>
+                                </StackPanel>
+                            </DockPanel>
+                        </Border>
+                    </Grid>
+                </Grid>
+
+                <!-- ==================== PAGE 3: CLIPBOARD & FILE SHELF ==================== -->
+                <Grid x:Name="PageClipboardShelf" Grid.Row="1" Visibility="Collapsed">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Left: Clipboard History -->
+                    <Border x:Name="ClipCard" Grid.Column="0" CornerRadius="12" Padding="10,8" Margin="0,0,5,0" BorderThickness="1">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <DockPanel Grid.Row="0" Margin="0,0,0,6">
+                                <TextBlock Text="📋 剪贴板记录 (点选即复制)" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                <Button Content="清空" Padding="7,2" FontSize="10.5" HorizontalAlignment="Right" Click="ClearClipboard_Click" Background="#22FFFFFF" BorderThickness="0" Cursor="Hand"/>
+                            </DockPanel>
+                            <ListBox x:Name="ClipboardListBox" Grid.Row="1" Background="Transparent" BorderThickness="0"
+                                     SelectionChanged="ClipboardListBox_SelectionChanged" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <DockPanel Margin="0,2,0,2">
+                                            <TextBlock Text="{Binding TimeLabel}" FontSize="10" Opacity="0.55" DockPanel.Dock="Right" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                                            <TextBlock Text="{Binding Preview}" FontSize="11.5" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                                        </DockPanel>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </Grid>
+                    </Border>
+
+                    <!-- Right: File Drop Shelf -->
+                    <Border x:Name="ShelfCard" Grid.Column="1" CornerRadius="12" Padding="10,8" Margin="5,0,0,0" BorderThickness="1" AllowDrop="True">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <DockPanel Grid.Row="0" Margin="0,0,0,6">
+                                <TextBlock Text="📦 文件中转站 (拖入暂存/拖出)" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                <Button Content="清空" Padding="7,2" FontSize="10.5" HorizontalAlignment="Right" Click="ClearShelf_Click" Background="#22FFFFFF" BorderThickness="0" Cursor="Hand"/>
+                            </DockPanel>
+                            <Grid Grid.Row="1">
+                                <TextBlock x:Name="ShelfEmptyHint" Text="把任意文件或文件夹拖到灵动岛上&#x0a;即可暂存，按住条目可拖到其他窗口"
+                                           FontSize="11" Opacity="0.55" TextAlignment="Center" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                <ListBox x:Name="ShelfListBox" Background="Transparent" BorderThickness="0"
+                                         PreviewMouseLeftButtonDown="ShelfListBox_PreviewMouseLeftButtonDown"
+                                         PreviewMouseMove="ShelfListBox_PreviewMouseMove"
+                                         ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <DockPanel Margin="0,2,0,2" ToolTip="{Binding FullPath}">
+                                                <TextBlock Text="{Binding SizeLabel}" FontSize="10" Opacity="0.6" DockPanel.Dock="Right" Margin="6,0,0,0"/>
+                                                <TextBlock Text="{Binding FileName}" FontSize="11.5" FontWeight="Medium" TextTrimming="CharacterEllipsis"/>
+                                            </DockPanel>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                            </Grid>
+                            <Button Grid.Row="2" Content="复制全部暂存文件到剪贴板" Margin="0,6,0,0" Padding="0,5" FontSize="11"
+                                    Click="CopyAllShelf_Click" Background="#28FFFFFF" BorderThickness="0" Cursor="Hand"/>
+                        </Grid>
+                    </Border>
+                </Grid>
+
+                <!-- ==================== PAGE 4: SYSTEM CONTROLS & DUAL-SCREEN ==================== -->
+                <Grid x:Name="PageControls" Grid.Row="1" Visibility="Collapsed">
+                    <StackPanel>
+                        <!-- Sliders: Volume & Brightness -->
+                        <Border x:Name="CtrlSlidersCard" CornerRadius="12" Padding="12,9" Margin="0,0,0,8" BorderThickness="1">
+                            <StackPanel>
+                                <Grid Margin="0,0,0,8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="28"/>
+                                        <ColumnDefinition Width="58"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="40"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Button x:Name="MuteBtn" Content="&#xE767;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
+                                            Width="24" Height="24" Click="MuteBtn_Click" Background="Transparent" BorderThickness="0" Cursor="Hand"/>
+                                    <TextBlock Grid.Column="1" Text="系统音量" FontSize="11.5" VerticalAlignment="Center"/>
+                                    <Slider x:Name="VolumeSlider" Grid.Column="2" Minimum="0" Maximum="100" VerticalAlignment="Center" ValueChanged="VolumeSlider_ValueChanged"/>
+                                    <TextBlock x:Name="VolumeValText" Grid.Column="3" Text="50%" FontSize="11.5" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                </Grid>
+
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="28"/>
+                                        <ColumnDefinition Width="58"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="40"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="&#xE706;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    <TextBlock Grid.Column="1" Text="屏幕亮度" FontSize="11.5" VerticalAlignment="Center"/>
+                                    <Slider x:Name="BrightnessSlider" Grid.Column="2" Minimum="0" Maximum="100" Value="80" VerticalAlignment="Center" ValueChanged="BrightnessSlider_ValueChanged"/>
+                                    <TextBlock x:Name="BrightnessValText" Grid.Column="3" Text="DDC" FontSize="11.5" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Quick Tile Grid -->
+                        <UniformGrid Columns="3" Rows="2">
+                            <Button x:Name="TileProxyBtn" Margin="0,0,5,6" Padding="10,8" Click="TileProxyBtn_Click" MouseRightButtonUp="TileProxyBtn_RightClick" BorderThickness="1" Cursor="Hand" ToolTip="左键开关 Windows 系统代理；右键打开桌面 FlClash">
+                                <StackPanel>
+                                    <TextBlock x:Name="TileProxyTitle" Text="🌐 FlClash 代理" FontSize="12" FontWeight="Bold"/>
+                                    <TextBlock x:Name="TileProxySub" Text="检测中…" FontSize="10.5" Opacity="0.75" Margin="0,2,0,0"/>
+                                </StackPanel>
+                            </Button>
+
+                            <Button x:Name="TileScreenBtn" Margin="3,0,3,6" Padding="10,8" Click="SwitchScreenBtn_Click" BorderThickness="1" Cursor="Hand" ToolTip="点击在右副屏与左主屏之间立即切换">
+                                <StackPanel>
+                                    <TextBlock Text="🖥 双屏位置切换" FontSize="12" FontWeight="Bold"/>
+                                    <TextBlock x:Name="TileScreenSub" Text="右副屏 · 顶部" FontSize="10.5" Opacity="0.75" Margin="0,2,0,0"/>
+                                </StackPanel>
+                            </Button>
+
+                            <Button x:Name="TileBtBtn" Margin="5,0,0,6" Padding="10,8" Click="TileBtBtn_Click" MouseRightButtonUp="TileBtBtn_RightClick" BorderThickness="1" Cursor="Hand" ToolTip="左键切换蓝牙开关；右键打开系统蓝牙设置">
+                                <StackPanel>
+                                    <TextBlock Text="🅱 蓝牙无线" FontSize="12" FontWeight="Bold"/>
+                                    <TextBlock x:Name="TileBtSub" Text="点击切换 / 右键设置" FontSize="10.5" Opacity="0.75" Margin="0,2,0,0"/>
+                                </StackPanel>
+                            </Button>
+
+                            <Button x:Name="TileCollapsedModeBtn" Margin="0,0,5,0" Padding="10,8" Click="TileCollapsedModeBtn_Click" BorderThickness="1" Cursor="Hand" ToolTip="也可直接在收起胶囊上滚动鼠标滚轮切换">
+                                <StackPanel>
+                                    <TextBlock Text="✨ 收起态样式" FontSize="12" FontWeight="Bold"/>
+                                    <TextBlock x:Name="TileCollapsedModeSub" Text="综合灵动视图" FontSize="10.5" Opacity="0.75" Margin="0,2,0,0"/>
+                                </StackPanel>
+                            </Button>
+
+                            <Button x:Name="TileFullscreenBtn" Margin="3,0,3,0" Padding="10,8" Click="TileFullscreenBtn_Click" BorderThickness="1" Cursor="Hand">
+                                <StackPanel>
+                                    <TextBlock Text="🎮 全屏免打扰" FontSize="12" FontWeight="Bold"/>
+                                    <TextBlock x:Name="TileFullscreenSub" Text="已开启" FontSize="10.5" Opacity="0.75" Margin="0,2,0,0"/>
+                                </StackPanel>
+                            </Button>
+
+                            <Button x:Name="TileRefreshAllBtn" Margin="5,0,0,0" Padding="10,8" Click="TileRefreshAllBtn_Click" BorderThickness="1" Cursor="Hand">
+                                <StackPanel>
+                                    <TextBlock Text="🔄 立即全量刷新" FontSize="12" FontWeight="Bold"/>
+                                    <TextBlock Text="额度 + 电量 + 天气" FontSize="10.5" Opacity="0.75" Margin="0,2,0,0"/>
+                                </StackPanel>
+                            </Button>
+                        </UniformGrid>
+                    </StackPanel>
+                </Grid>
+
+                <!-- Footer Status Line -->
+                <DockPanel Grid.Row="2" Margin="2,8,2,0">
+                    <TextBlock x:Name="FooterLeftText" Text="就绪 · 滚轮切换收起视图 · 按住边缘可跨屏拉丝拖动" FontSize="10.5" Opacity="0.62"/>
+                    <TextBlock x:Name="FooterRightText" Text="" FontSize="10.5" Opacity="0.62" HorizontalAlignment="Right"/>
+                </DockPanel>
+            </Grid>
+        </Grid>
+    </Grid>
+</Window>

@@ -1,0 +1,17 @@
+# .NET / Visual Studio
+bin/
+obj/
+.vs/
+*.user
+*.suo
+*.cache
+*.pdb
+*.log
+
+# Runtime / Local test outputs
+selftest*.json
+selftest*.log
+settings.json
+error.log
+dist/
+publish/
