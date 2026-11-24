@@ -385,14 +385,29 @@ public partial class MainWindow : Window
 
     // ==================== DUAL-MONITOR GEOMETRY & LIQUID DRAG ====================
 
-    private double CollapsedCapsuleWidth() => EffectiveCollapsedMode() switch
+    private double CollapsedCapsuleWidth()
     {
-        "overview" => 396,
-        "clock" => 264,
-        "media" => 360,
-        "pet" => 190,
-        _ => 380
-    };
+        switch (EffectiveCollapsedMode())
+        {
+            case "overview":
+                // Auto-layout width calculation based on enabled & visible compact modules
+                double w = 26; // Horizontal padding
+                if (_settings.CompactShowQuotas) w += 82;
+                if (_settings.CompactShowHardware) w += 172;
+                if (_settings.CompactShowBattery && ColBatBadge.Visibility == Visibility.Visible) w += 64;
+                if (_settings.CompactShowQuickActions) w += 82;
+                if (_settings.CompactShowClock) w += 44;
+                return Math.Clamp(w, 160, 520);
+            case "clock":
+                return 264;
+            case "media":
+                return 410;
+            case "pet":
+                return 190;
+            default:
+                return 380;
+        }
+    }
 
     private string EffectiveCollapsedMode()
     {
@@ -1033,24 +1048,25 @@ public partial class MainWindow : Window
     {
         // 1. Collapsed Battery Pill: pick primary device with battery%, or first connected receiver
         var primaryWithPct = devices.FirstOrDefault(d => d.BatteryPercent.HasValue);
-        if (primaryWithPct is not null)
+        if (_settings.CompactShowBattery && primaryWithPct is not null)
         {
             ColBatBadge.Visibility = Visibility.Visible;
             ColBatIcon.Text = primaryWithPct.IconGlyph;
             ColBatText.Text = primaryWithPct.Charging ? $"⚡{primaryWithPct.BatteryPercent}%" : $"{primaryWithPct.BatteryPercent}%";
-            ColBatBadge.ToolTip = $"{primaryWithPct.Name} ({primaryWithPct.ConnectionType}): {primaryWithPct.DisplayBattery}";
+            ColBatBadge.ToolTip = $"{primaryWithPct.Name} ({primaryWithPct.ConnectionType}): {primaryWithPct.DisplayBattery}（点击查看与刷新）";
         }
-        else if (devices.Count > 0)
+        else if (_settings.CompactShowBattery && devices.Count > 0)
         {
             ColBatBadge.Visibility = Visibility.Visible;
             ColBatIcon.Text = devices[0].IconGlyph;
             ColBatText.Text = devices[0].Asleep ? "休眠" : "2.4G";
-            ColBatBadge.ToolTip = $"{devices[0].Name} ({devices[0].ConnectionType}): {devices[0].DisplayBattery}（移动唤醒鼠标后可读取电量）";
+            ColBatBadge.ToolTip = $"{devices[0].Name} ({devices[0].ConnectionType}): {devices[0].DisplayBattery}（点击刷新）";
         }
         else
         {
             ColBatBadge.Visibility = Visibility.Collapsed;
         }
+        RepositionAndRedraw();
 
         // 2. Expanded Wireless Devices List
         WirelessDevicesList.Children.Clear();
@@ -1141,12 +1157,13 @@ public partial class MainWindow : Window
             c.BorderBrush = _palette.CardBorder;
         }
 
-        Button[] headerBtns = [PinBtn, SwitchScreenBtn, ThemeQuickBtn, OpenSettingsBtn, CollapseNowBtn];
+        Button[] headerBtns = [PinBtn, SwitchScreenBtn, ThemeQuickBtn, OpenSettingsBtn, CollapseNowBtn, ColMuteBtn, ColScreenBtn];
         foreach (var b in headerBtns)
         {
             b.Background = _palette.CardBackground;
             b.Foreground = _palette.TextPrimary;
         }
+        RefreshProxyTile();
 
         Button[] tiles = [TileProxyBtn, TileScreenBtn, TileBtBtn, TileCollapsedModeBtn, TileFullscreenBtn, TileRefreshAllBtn];
         foreach (var t in tiles)
@@ -1201,9 +1218,20 @@ public partial class MainWindow : Window
         CollapsedMediaPanel.Visibility = mode == "media" ? Visibility.Visible : Visibility.Collapsed;
         CollapsedPetPanel.Visibility = mode == "pet" ? Visibility.Visible : Visibility.Collapsed;
 
+        // Auto-layout module visibility inside Overview capsule
+        CompactQuotasBox.Visibility = _settings.CompactShowQuotas ? Visibility.Visible : Visibility.Collapsed;
+        CompactHwBox.Visibility = _settings.CompactShowHardware ? Visibility.Visible : Visibility.Collapsed;
+        CompactQuickActionsBox.Visibility = _settings.CompactShowQuickActions ? Visibility.Visible : Visibility.Collapsed;
+        ColTimeText.Visibility = _settings.CompactShowClock ? Visibility.Visible : Visibility.Collapsed;
+        ColDivider1.Visibility = (_settings.CompactShowQuotas && (_settings.CompactShowHardware || _settings.CompactShowBattery))
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+        if (!_settings.CompactShowBattery)
+            ColBatBadge.Visibility = Visibility.Collapsed;
+
         TileCollapsedModeSub.Text = _settings.CollapsedMode switch
         {
-            "overview" => "综合灵动 (额度+硬件+电量)",
+            "overview" => "综合灵动 (自动排版+快捷点击)",
             "clock" => "时间与实时天气",
             "media" => "音乐与滚动歌词",
             "pet" => "Wisland 发光双眼小形象",
@@ -1242,6 +1270,7 @@ public partial class MainWindow : Window
             VolumeSlider.Value = vol;
             VolumeValText.Text = muted ? "静音" : $"{vol}%";
             MuteBtn.Content = muted ? "\uE74F" : "\uE767";
+            ColMuteBtn.Content = muted ? "\uE74F" : "\uE767";
 
             var br = _sysControl.GetBrightness(_hwnd);
             if (br.HasValue)
@@ -1267,11 +1296,17 @@ public partial class MainWindow : Window
 
     private void RefreshProxyTile()
     {
-        var (clashRun, proxyOn, srv) = _sysControl.GetProxyStatus();
-        TileProxyTitle.Text = clashRun ? "🌐 FlClash (运行中)" : "🌐 系统代理开关";
+        var (clashRun, clientName, proxyOn, srv) = _sysControl.GetProxyStatus();
+        TileProxyTitle.Text = clashRun ? $"🌐 {clientName} (运行中)" : "🌐 Clash 系代理开关";
         TileProxySub.Text = proxyOn ? $"已开启 ({(string.IsNullOrWhiteSpace(srv) ? $"127.0.0.1:{_settings.SystemProxyPort}" : srv)})" : "直连 (点击开启系统代理)";
         TileProxyBtn.Background = proxyOn ? _palette.PillActiveBackground : _palette.CardBackground;
         TileProxyBtn.Foreground = proxyOn ? _palette.PillActiveForeground : _palette.TextPrimary;
+
+        ColProxyBtn.Background = proxyOn ? _palette.PillActiveBackground : _palette.CardBackground;
+        ColProxyBtn.Foreground = proxyOn ? _palette.PillActiveForeground : _palette.TextPrimary;
+        ColProxyBtn.ToolTip = proxyOn
+            ? $"{clientName} 系统代理已开启（左键关闭，右键打开客户端）"
+            : $"{clientName} 当前直连（左键开启系统代理，右键打开客户端）";
     }
 
     // ==================== BUTTON & INTERACTION HANDLERS ====================
@@ -1379,11 +1414,38 @@ public partial class MainWindow : Window
         FooterLeftText.Text = $"已将 {_clipboardService.ShelfFiles.Count} 个暂存文件复制到剪贴板，可直接 Ctrl+V 粘贴";
     }
 
+    private void CompactQuotasBox_Click(object sender, MouseButtonEventArgs e)
+    {
+        if (_draggingIsland) return;
+        SwitchTab(0);
+        ExpandIsland(pin: false);
+        e.Handled = true;
+    }
+
+    private void CompactHwBox_Click(object sender, MouseButtonEventArgs e)
+    {
+        if (_draggingIsland) return;
+        SwitchTab(1);
+        ExpandIsland(pin: false);
+        e.Handled = true;
+    }
+
+    private async void ColBatBadge_Click(object sender, MouseButtonEventArgs e)
+    {
+        if (_draggingIsland) return;
+        SwitchTab(1);
+        ExpandIsland(pin: false);
+        e.Handled = true;
+        await RefreshBatteriesAsync();
+    }
+
     private void MuteBtn_Click(object sender, RoutedEventArgs e)
     {
         bool muted = _sysControl.ToggleMute();
         MuteBtn.Content = muted ? "\uE74F" : "\uE767";
+        ColMuteBtn.Content = muted ? "\uE74F" : "\uE767";
         VolumeValText.Text = muted ? "静音" : $"{(int)VolumeSlider.Value}%";
+        e.Handled = true;
     }
 
     private void VolumeSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
@@ -1412,7 +1474,7 @@ public partial class MainWindow : Window
 
     private void TileProxyBtn_RightClick(object sender, MouseButtonEventArgs e)
     {
-        _sysControl.LaunchOrShowFlClash(_settings);
+        _sysControl.LaunchOrShowProxyClient(_settings);
         e.Handled = true;
     }
 
@@ -1581,6 +1643,11 @@ public partial class MainWindow : Window
             _settings.LiquidEffect = updated.LiquidEffect;
             _settings.ExpandOnHover = updated.ExpandOnHover;
             _settings.AutoShowLyrics = updated.AutoShowLyrics;
+            _settings.CompactShowQuotas = updated.CompactShowQuotas;
+            _settings.CompactShowHardware = updated.CompactShowHardware;
+            _settings.CompactShowBattery = updated.CompactShowBattery;
+            _settings.CompactShowQuickActions = updated.CompactShowQuickActions;
+            _settings.CompactShowClock = updated.CompactShowClock;
             _settings.HideOnFullscreen = updated.HideOnFullscreen;
             _settings.LowPowerMode = updated.LowPowerMode;
             _settings.PauseWhenLocked = updated.PauseWhenLocked;

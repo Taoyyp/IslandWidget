@@ -207,7 +207,7 @@ public partial class App : Application
                 },
                 Weather = new { wSnap.Ok, wSnap.City, wSnap.TempC, wSnap.Desc, wSnap.Humidity, wSnap.Error },
                 Audio = new { vol, muted },
-                Proxy = new { proxy.ClashRunning, proxy.SysProxyEnabled, proxy.ProxyServer, settings.FlClashPath }
+                Proxy = new { proxy.ClashRunning, proxy.ClientName, proxy.SysProxyEnabled, proxy.ProxyServer, settings.ProxyClientPath }
             };
 
             var outPath = Path.Combine(AppContext.BaseDirectory, "selftest.json");

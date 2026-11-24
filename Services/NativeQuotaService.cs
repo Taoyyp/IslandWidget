@@ -405,7 +405,7 @@ public sealed class NativeQuotaService : IDisposable
             var token = CredentialReader.ReadDshToken();
             using var req = new HttpRequestMessage(HttpMethod.Get, "https://platform.deepseek.com/api/v0/users/get_user_summary");
             req.Headers.TryAddWithoutValidation("x-dsh-auth-token", token);
-            req.Headers.TryAddWithoutValidation("User-Agent", "IslandWidget/2.0");
+            req.Headers.TryAddWithoutValidation("User-Agent", "IslandWidget/1.0");
             req.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 
             using var resp = await client.SendAsync(req, ct).ConfigureAwait(false);

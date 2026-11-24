@@ -38,25 +38,73 @@
               MouseWheel="BodyContainer_MouseWheel">
 
             <!-- ==================== COLLAPSED CAPSULE LAYER ==================== -->
-            <Grid x:Name="CollapsedLayer" Margin="12,0,12,0" VerticalAlignment="Center">
-                <!-- Mode 0: Overview (AI Quota Rings + CPU/GPU/Net + Wireless Battery + Time) -->
+            <Grid x:Name="CollapsedLayer" Margin="10,0,10,0" VerticalAlignment="Center">
+                <!-- Mode 0: Overview (Auto-Layout + Direct Clickable Modules!) -->
                 <StackPanel x:Name="CollapsedOverviewPanel" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center">
-                    <ui:QuotaRingControl x:Name="RingAgy" Width="21" Height="21" Margin="0,0,5,0" ToolTip="Antigravity 额度"/>
-                    <ui:QuotaRingControl x:Name="RingCodex" Width="21" Height="21" Margin="0,0,5,0" ToolTip="Codex 额度"/>
-                    <ui:QuotaRingControl x:Name="RingDsh" Width="21" Height="21" Margin="0,0,9,0" ToolTip="DSH 余额"/>
+                    <!-- Module A: AI Quota Rings (click to open Quotas tab) -->
+                    <StackPanel x:Name="CompactQuotasBox" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,7,0"
+                                Cursor="Hand" MouseLeftButtonUp="CompactQuotasBox_Click" ToolTip="点击展开 AI 额度详情">
+                        <ui:QuotaRingControl x:Name="RingAgy" Width="21" Height="21" Margin="0,0,4,0"/>
+                        <ui:QuotaRingControl x:Name="RingCodex" Width="21" Height="21" Margin="0,0,4,0"/>
+                        <ui:QuotaRingControl x:Name="RingDsh" Width="21" Height="21"/>
+                    </StackPanel>
 
-                    <Border x:Name="ColDivider1" Width="1" Height="14" Background="#33FFFFFF" Margin="0,0,9,0"/>
+                    <Border x:Name="ColDivider1" Width="1" Height="14" Background="#33FFFFFF" Margin="0,0,7,0"/>
 
-                    <TextBlock x:Name="ColHwText" Text="CPU 0% · GPU 0%" FontSize="11.5" FontWeight="Medium" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                    <TextBlock x:Name="ColNetText" Text="↓0K/s" FontSize="11.5" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                    <!-- Module B: Hardware & Net Speed (click to open Hardware tab) -->
+                    <StackPanel x:Name="CompactHwBox" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,7,0"
+                                Cursor="Hand" MouseLeftButtonUp="CompactHwBox_Click" ToolTip="点击展开硬件与网速详情">
+                        <TextBlock x:Name="ColHwText" Text="CPU 0% · GPU 0%" FontSize="11.5" FontWeight="Medium" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                        <TextBlock x:Name="ColNetText" Text="↓0K/s" FontSize="11.5" VerticalAlignment="Center"/>
+                    </StackPanel>
 
-                    <Border x:Name="ColBatBadge" CornerRadius="9" Padding="6,2" Margin="0,0,8,0" Background="#22FFFFFF" VerticalAlignment="Center">
+                    <!-- Module C: Wireless Battery Pill (click to open & refresh battery) -->
+                    <Border x:Name="ColBatBadge" CornerRadius="9" Padding="6,2" Margin="0,0,7,0" Background="#22FFFFFF"
+                            VerticalAlignment="Center" Cursor="Hand" MouseLeftButtonUp="ColBatBadge_Click">
                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                             <TextBlock x:Name="ColBatIcon" Text="&#xE962;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="11" VerticalAlignment="Center" Margin="0,0,3,0"/>
                             <TextBlock x:Name="ColBatText" Text="—" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Border>
 
+                    <!-- Module D: Direct-Click Quick Action Buttons (works right in collapsed state!) -->
+                    <StackPanel x:Name="CompactQuickActionsBox" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,7,0">
+                        <Button x:Name="ColMuteBtn" Content="&#xE767;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="10.5"
+                                Width="22" Height="22" Margin="0,0,3,0" Click="MuteBtn_Click"
+                                Background="#20FFFFFF" BorderThickness="0" Cursor="Hand" ToolTip="小窗一键静音/取消静音">
+                            <Button.Template>
+                                <ControlTemplate TargetType="Button">
+                                    <Border Background="{TemplateBinding Background}" CornerRadius="11">
+                                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                </ControlTemplate>
+                            </Button.Template>
+                        </Button>
+                        <Button x:Name="ColProxyBtn" Content="&#xE774;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="10.5"
+                                Width="22" Height="22" Margin="0,0,3,0" Click="TileProxyBtn_Click" MouseRightButtonUp="TileProxyBtn_RightClick"
+                                Background="#20FFFFFF" BorderThickness="0" Cursor="Hand" ToolTip="左键一键开关 Clash 系系统代理；右键打开客户端">
+                            <Button.Template>
+                                <ControlTemplate TargetType="Button">
+                                    <Border Background="{TemplateBinding Background}" CornerRadius="11">
+                                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                </ControlTemplate>
+                            </Button.Template>
+                        </Button>
+                        <Button x:Name="ColScreenBtn" Content="&#xE7F4;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="10.5"
+                                Width="22" Height="22" Click="SwitchScreenBtn_Click"
+                                Background="#20FFFFFF" BorderThickness="0" Cursor="Hand" ToolTip="小窗一键切换左主屏 / 右副屏">
+                            <Button.Template>
+                                <ControlTemplate TargetType="Button">
+                                    <Border Background="{TemplateBinding Background}" CornerRadius="11">
+                                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                </ControlTemplate>
+                            </Button.Template>
+                        </Button>
+                    </StackPanel>
+
+                    <!-- Module E: Clock -->
                     <TextBlock x:Name="ColTimeText" Text="18:00" FontSize="12" FontWeight="Bold" VerticalAlignment="Center"/>
                 </StackPanel>
 
@@ -70,7 +118,7 @@
                     <Ellipse x:Name="ClockHealthDot" Width="7" Height="7" Fill="#34D399" VerticalAlignment="Center" ToolTip="所有服务状态正常"/>
                 </StackPanel>
 
-                <!-- Mode 2: Media & Synchronized Scrolling Lyrics -->
+                <!-- Mode 2: Media & Synchronized Scrolling Lyrics (Direct Prev/Play/Next!) -->
                 <Grid x:Name="CollapsedMediaPanel" Visibility="Collapsed" VerticalAlignment="Center">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto"/>
@@ -84,19 +132,42 @@
                         </Grid>
                     </Border>
                     <TextBlock x:Name="ColLyricText" Grid.Column="1" Text="暂无正在播放的音乐" FontSize="12" FontWeight="Medium"
-                               VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="0,0,8,0"/>
-                    <Button x:Name="ColPlayPauseBtn" Grid.Column="2" Content="&#xE768;"
-                            FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="11"
-                            Width="24" Height="24" Click="MediaPlayPause_Click"
-                            Background="#26FFFFFF" BorderThickness="0" Cursor="Hand" ToolTip="播放/暂停">
-                        <Button.Template>
-                            <ControlTemplate TargetType="Button">
-                                <Border Background="{TemplateBinding Background}" CornerRadius="12">
-                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                </Border>
-                            </ControlTemplate>
-                        </Button.Template>
-                    </Button>
+                               VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="0,0,6,0"/>
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                        <Button Content="&#xE892;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="10"
+                                Width="22" Height="22" Margin="0,0,3,0" Click="MediaPrev_Click"
+                                Background="#1EFFFFFF" BorderThickness="0" Cursor="Hand" ToolTip="上一曲">
+                            <Button.Template>
+                                <ControlTemplate TargetType="Button">
+                                    <Border Background="{TemplateBinding Background}" CornerRadius="11">
+                                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                </ControlTemplate>
+                            </Button.Template>
+                        </Button>
+                        <Button x:Name="ColPlayPauseBtn" Content="&#xE768;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="10.5"
+                                Width="24" Height="24" Margin="0,0,3,0" Click="MediaPlayPause_Click"
+                                Background="#2CFFFFFF" BorderThickness="0" Cursor="Hand" ToolTip="播放/暂停">
+                            <Button.Template>
+                                <ControlTemplate TargetType="Button">
+                                    <Border Background="{TemplateBinding Background}" CornerRadius="12">
+                                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                </ControlTemplate>
+                            </Button.Template>
+                        </Button>
+                        <Button Content="&#xE893;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="10"
+                                Width="22" Height="22" Click="MediaNext_Click"
+                                Background="#1EFFFFFF" BorderThickness="0" Cursor="Hand" ToolTip="下一曲">
+                            <Button.Template>
+                                <ControlTemplate TargetType="Button">
+                                    <Border Background="{TemplateBinding Background}" CornerRadius="11">
+                                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                </ControlTemplate>
+                            </Button.Template>
+                        </Button>
+                    </StackPanel>
                 </Grid>
 
                 <!-- Mode 3: Wisland Glowing Eye-Tracking Pet Avatar -->
@@ -507,9 +578,9 @@
 
                         <!-- Quick Tile Grid -->
                         <UniformGrid Columns="3" Rows="2">
-                            <Button x:Name="TileProxyBtn" Margin="0,0,5,6" Padding="10,8" Click="TileProxyBtn_Click" MouseRightButtonUp="TileProxyBtn_RightClick" BorderThickness="1" Cursor="Hand" ToolTip="左键开关 Windows 系统代理；右键打开桌面 FlClash">
+                            <Button x:Name="TileProxyBtn" Margin="0,0,5,6" Padding="10,8" Click="TileProxyBtn_Click" MouseRightButtonUp="TileProxyBtn_RightClick" BorderThickness="1" Cursor="Hand" ToolTip="左键开关系统代理；右键打开 Clash 系客户端（FlClash / Clash Verge / Mihomo Party 等）">
                                 <StackPanel>
-                                    <TextBlock x:Name="TileProxyTitle" Text="🌐 FlClash 代理" FontSize="12" FontWeight="Bold"/>
+                                    <TextBlock x:Name="TileProxyTitle" Text="🌐 Clash 系代理" FontSize="12" FontWeight="Bold"/>
                                     <TextBlock x:Name="TileProxySub" Text="检测中…" FontSize="10.5" Opacity="0.75" Margin="0,2,0,0"/>
                                 </StackPanel>
                             </Button>

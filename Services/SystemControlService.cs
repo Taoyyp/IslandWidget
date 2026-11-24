@@ -187,18 +187,34 @@ public sealed class SystemControlService
     public void OpenWifiSettings() => OpenUri("ms-settings:network-wifi");
     public void OpenBluetoothSettings() => OpenUri("ms-settings:bluetooth");
 
-    // ---- FlClash & Windows System Proxy ----
-    public (bool ClashRunning, bool SysProxyEnabled, string ProxyServer) GetProxyStatus()
+    // ---- Clash Family (FlClash / Clash Verge / Mihomo Party / Nyanpasu / CFW) & System Proxy ----
+    public (bool ClashRunning, string ClientName, bool SysProxyEnabled, string ProxyServer) GetProxyStatus()
     {
         bool running = false;
+        string clientName = "Clash 系代理";
         try
         {
-            foreach (var name in new[] { "FlClash", "FlClashCore", "clash-verge", "mihomo", "v2rayN" })
+            (string Proc, string Label)[] knownClients =
+            [
+                ("FlClash", "FlClash"),
+                ("FlClashCore", "FlClash"),
+                ("clash-verge", "Clash Verge"),
+                ("Clash Verge", "Clash Verge"),
+                ("Clash Nyanpasu", "Clash Nyanpasu"),
+                ("Mihomo Party", "Mihomo Party"),
+                ("Clash for Windows", "Clash"),
+                ("mihomo", "Mihomo"),
+                ("clash-meta", "Clash Meta"),
+                ("v2rayN", "v2rayN")
+            ];
+
+            foreach (var (procName, label) in knownClients)
             {
-                var procs = Process.GetProcessesByName(name);
+                var procs = Process.GetProcessesByName(procName);
                 if (procs.Length > 0)
                 {
                     running = true;
+                    clientName = label;
                     foreach (var p in procs) p.Dispose();
                     break;
                 }
@@ -207,7 +223,7 @@ public sealed class SystemControlService
         catch { }
 
         var (enabled, server) = ProxyDetector.ReadRawSystemProxy();
-        return (running, enabled, server);
+        return (running, clientName, enabled, server);
     }
 
     public bool ToggleSystemProxy(AppSettings settings)
@@ -218,13 +234,13 @@ public sealed class SystemControlService
         return next;
     }
 
-    public void LaunchOrShowFlClash(AppSettings settings)
+    public void LaunchOrShowProxyClient(AppSettings settings)
     {
-        var path = settings.FlClashPath;
+        var path = settings.ProxyClientPath;
         if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
         {
             settings.AutoFillDefaults();
-            path = settings.FlClashPath;
+            path = settings.ProxyClientPath;
         }
         if (!string.IsNullOrWhiteSpace(path) && File.Exists(path))
         {

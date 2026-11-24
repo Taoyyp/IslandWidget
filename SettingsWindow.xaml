@@ -85,7 +85,15 @@
                             <CheckBox x:Name="FullscreenHideCheck" Content="全屏游戏/视频自动隐藏" Foreground="#E2E8F0" Margin="0,0,18,8"/>
                             <CheckBox x:Name="LowPowerCheck" Content="极致低占用模式（静止0帧渲染）" Foreground="#E2E8F0" Margin="0,0,18,8"/>
                             <CheckBox x:Name="PauseLockCheck" Content="锁屏/睡眠暂停后台采集" Foreground="#E2E8F0" Margin="0,0,18,8"/>
-                            <CheckBox x:Name="StartupCheck" Content="开机自动启动" Foreground="#E2E8F0" Margin="0,0,18,4"/>
+                            <CheckBox x:Name="StartupCheck" Content="开机自动启动" Foreground="#E2E8F0" Margin="0,0,18,8"/>
+                        </WrapPanel>
+                        <TextBlock Text="小窗口（收起态）自动排版模块（勾选即显示并可直接点击）：" FontSize="11.5" Foreground="#94A3B8" Margin="0,6,0,6"/>
+                        <WrapPanel>
+                            <CheckBox x:Name="CompactQuotasCheck" Content="AI 额度环" Foreground="#E2E8F0" Margin="0,0,14,6"/>
+                            <CheckBox x:Name="CompactHwCheck" Content="CPU/GPU/网速" Foreground="#E2E8F0" Margin="0,0,14,6"/>
+                            <CheckBox x:Name="CompactBatCheck" Content="无线设备电量" Foreground="#E2E8F0" Margin="0,0,14,6"/>
+                            <CheckBox x:Name="CompactQuickCheck" Content="快捷控制 (静音/代理/切屏)" Foreground="#E2E8F0" Margin="0,0,14,6"/>
+                            <CheckBox x:Name="CompactClockCheck" Content="时钟" Foreground="#E2E8F0" Margin="0,0,14,6"/>
                         </WrapPanel>
                     </StackPanel>
                 </Border>
@@ -109,7 +117,7 @@
                                 <ComboBoxItem Content="30 分钟" Tag="30"/>
                             </ComboBox>
                         </Grid>
-                        <CheckBox x:Name="AutoProxyCheck" Content="自动读取 Windows 系统代理（推荐，兼容 FlClash）" Foreground="#E2E8F0" Margin="0,2,0,8" Checked="AutoProxyCheck_Changed" Unchecked="AutoProxyCheck_Changed"/>
+                        <CheckBox x:Name="AutoProxyCheck" Content="自动读取 Windows 系统代理（兼容 FlClash / Clash Verge / Mihomo Party 等）" Foreground="#E2E8F0" Margin="0,2,0,8" Checked="AutoProxyCheck_Changed" Unchecked="AutoProxyCheck_Changed"/>
                         <Grid Margin="0,0,0,8">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="120"/>

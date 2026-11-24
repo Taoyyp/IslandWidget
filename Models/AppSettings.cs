@@ -23,6 +23,13 @@ public sealed class AppSettings
     public string CollapsedMode { get; set; } = "overview";
     public bool AutoShowLyrics { get; set; } = true;
 
+    // Collapsed Auto-Layout Module Toggles (click directly in collapsed state!)
+    public bool CompactShowQuotas { get; set; } = true;
+    public bool CompactShowHardware { get; set; } = true;
+    public bool CompactShowBattery { get; set; } = true;
+    public bool CompactShowQuickActions { get; set; } = true; // Direct Mute / Clash Proxy / Switch Screen in capsule!
+    public bool CompactShowClock { get; set; } = true;
+
     // Window & Power Behavior
     public bool ExpandOnHover { get; set; } = true;
     public bool PinnedCollapsed { get; set; } = false; // 双击切换“长关”
@@ -39,7 +46,7 @@ public sealed class AppSettings
     public bool AutoDetectProxy { get; set; } = true;
     public string ManualProxyUrl { get; set; } = "";
     public int SystemProxyPort { get; set; } = 7890;
-    public string FlClashPath { get; set; } = "";
+    public string ProxyClientPath { get; set; } = "";
 
     // Weather
     public string WeatherCity { get; set; } = "北京";
@@ -100,23 +107,55 @@ public sealed class AppSettings
 
     public void AutoFillDefaults()
     {
-        if (string.IsNullOrWhiteSpace(FlClashPath))
+        if (string.IsNullOrWhiteSpace(ProxyClientPath))
         {
-            var desktop = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
-            if (Directory.Exists(desktop))
+            ProxyClientPath = DetectInstalledProxyClient();
+        }
+        Normalize();
+    }
+
+    public static string DetectInstalledProxyClient()
+    {
+        string[] candidateDirs =
+        [
+            Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory),
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs")
+        ];
+
+        string[] exeNames =
+        [
+            "FlClash.exe",
+            "clash-verge.exe",
+            "Clash Verge.exe",
+            "Clash Nyanpasu.exe",
+            "Mihomo Party.exe",
+            "Clash for Windows.exe"
+        ];
+
+        foreach (var root in candidateDirs)
+        {
+            if (string.IsNullOrWhiteSpace(root) || !Directory.Exists(root)) continue;
+            try
             {
-                foreach (var dir in Directory.GetDirectories(desktop, "FlClash*"))
+                foreach (var dir in Directory.GetDirectories(root))
                 {
-                    var exe = Path.Combine(dir, "FlClash.exe");
-                    if (File.Exists(exe))
+                    var dirName = Path.GetFileName(dir);
+                    if (!dirName.Contains("clash", StringComparison.OrdinalIgnoreCase) &&
+                        !dirName.Contains("mihomo", StringComparison.OrdinalIgnoreCase))
+                        continue;
+
+                    foreach (var exe in exeNames)
                     {
-                        FlClashPath = exe;
-                        break;
+                        var full = Path.Combine(dir, exe);
+                        if (File.Exists(full)) return full;
                     }
                 }
             }
+            catch { }
         }
-        Normalize();
+        return "";
     }
 
     public void Normalize()

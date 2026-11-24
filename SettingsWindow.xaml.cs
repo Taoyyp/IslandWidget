@@ -31,6 +31,11 @@ public partial class SettingsWindow : Window
         LiquidCheck.IsChecked = _working.LiquidEffect;
         HoverExpandCheck.IsChecked = _working.ExpandOnHover;
         AutoLyricsCheck.IsChecked = _working.AutoShowLyrics;
+        CompactQuotasCheck.IsChecked = _working.CompactShowQuotas;
+        CompactHwCheck.IsChecked = _working.CompactShowHardware;
+        CompactBatCheck.IsChecked = _working.CompactShowBattery;
+        CompactQuickCheck.IsChecked = _working.CompactShowQuickActions;
+        CompactClockCheck.IsChecked = _working.CompactShowClock;
         FullscreenHideCheck.IsChecked = _working.HideOnFullscreen;
         LowPowerCheck.IsChecked = _working.LowPowerMode;
         PauseLockCheck.IsChecked = _working.PauseWhenLocked;
@@ -145,6 +150,11 @@ public partial class SettingsWindow : Window
         _working.LiquidEffect = LiquidCheck.IsChecked == true;
         _working.ExpandOnHover = HoverExpandCheck.IsChecked == true;
         _working.AutoShowLyrics = AutoLyricsCheck.IsChecked == true;
+        _working.CompactShowQuotas = CompactQuotasCheck.IsChecked == true;
+        _working.CompactShowHardware = CompactHwCheck.IsChecked == true;
+        _working.CompactShowBattery = CompactBatCheck.IsChecked == true;
+        _working.CompactShowQuickActions = CompactQuickCheck.IsChecked == true;
+        _working.CompactShowClock = CompactClockCheck.IsChecked == true;
         _working.HideOnFullscreen = FullscreenHideCheck.IsChecked == true;
         _working.LowPowerMode = LowPowerCheck.IsChecked == true;
         _working.PauseWhenLocked = PauseLockCheck.IsChecked == true;
