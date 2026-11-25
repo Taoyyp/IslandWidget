@@ -54,14 +54,20 @@ public partial class MainWindow : Window
     private readonly DispatcherTimer _batteryTick;  // 45s: Wireless & Bluetooth battery
     private readonly DispatcherTimer _quotaTick;    // N min: AI Quotas
     private readonly DispatcherTimer _weatherTick;  // 30 min: Open-Meteo weather
-    private readonly DispatcherTimer _collapseDelayTimer;
+    private readonly DispatcherTimer _hoverExpandTimer;
+    private readonly DispatcherTimer _hoverLeaveTimer;
 
     // Animation & Liquid Drag State
+    private const double TransitionDurationSec = 0.18;
     private bool _renderHooked;
     private bool _isExpanded;
     private bool _pinnedExpanded;
-    private double _animProgress; // 0 = collapsed, 1 = expanded
-    private double _targetProgress;
+    private bool _contextMenuOpen;
+    private bool _windowInCanvasMode;
+    private double _animLinear; // 0 = collapsed, 1 = expanded (linear time progress)
+    private double _targetLinear;
+    private int _outsideHoverTicks;
+    private Rect _lastBodyScreenDip;
     private long _lastFrameTicks;
 
     private bool _pointerDown;
@@ -118,12 +124,51 @@ public partial class MainWindow : Window
         _weatherTick = new DispatcherTimer(DispatcherPriority.Background) { Interval = TimeSpan.FromMinutes(30) };
         _weatherTick.Tick += async (_, _) => await RefreshWeatherAsync();
 
-        _collapseDelayTimer = new DispatcherTimer(DispatcherPriority.Background) { Interval = TimeSpan.FromMilliseconds(240) };
-        _collapseDelayTimer.Tick += (_, _) =>
+        _hoverExpandTimer = new DispatcherTimer(DispatcherPriority.Background) { Interval = TimeSpan.FromMilliseconds(120) };
+        _hoverExpandTimer.Tick += (_, _) =>
         {
-            _collapseDelayTimer.Stop();
-            if (!_pinnedExpanded && !_draggingIsland && !IsMouseOver)
-                CollapseIsland();
+            _hoverExpandTimer.Stop();
+            if (_isExpanded || !_settings.ExpandOnHover || _settings.PinnedCollapsed || _draggingIsland || _settings.ClickThrough || _contextMenuOpen)
+                return;
+
+            // Keep small-window direct-click quick buttons usable without jumping open!
+            if (IsCursorOverDirectActionButtons())
+                return;
+
+            var cursorDip = DualMonitorHelper.PhysicalToDipPoint(this, Forms.Cursor.Position);
+            var hitRect = _lastBodyScreenDip;
+            hitRect.Inflate(4, 4);
+            if (hitRect.Contains(cursorDip))
+                ExpandIsland();
+        };
+
+        _hoverLeaveTimer = new DispatcherTimer(DispatcherPriority.Background) { Interval = TimeSpan.FromMilliseconds(95) };
+        _hoverLeaveTimer.Tick += (_, _) =>
+        {
+            if (!_isExpanded || _pinnedExpanded || _draggingIsland || _contextMenuOpen)
+            {
+                _outsideHoverTicks = 0;
+                if (!_isExpanded) _hoverLeaveTimer.Stop();
+                return;
+            }
+
+            var cursorDip = DualMonitorHelper.PhysicalToDipPoint(this, Forms.Cursor.Position);
+            var activeRect = _lastBodyScreenDip;
+            activeRect.Inflate(14, 14);
+            if (activeRect.Contains(cursorDip))
+            {
+                _outsideHoverTicks = 0;
+            }
+            else
+            {
+                _outsideHoverTicks++;
+                if (_outsideHoverTicks >= 2) // ~190ms outside actual glass bounds
+                {
+                    _outsideHoverTicks = 0;
+                    _hoverLeaveTimer.Stop();
+                    CollapseIsland();
+                }
+            }
         };
 
         SourceInitialized += MainWindow_SourceInitialized;
@@ -190,7 +235,7 @@ public partial class MainWindow : Window
         const int WM_DPICHANGED = 0x02E0;
         if (msg is WM_DISPLAYCHANGE or WM_DPICHANGED)
         {
-            Dispatcher.BeginInvoke(DispatcherPriority.Background, RepositionAndRedraw);
+            Dispatcher.BeginInvoke(DispatcherPriority.Background, () => RepositionAndRedraw());
         }
         return IntPtr.Zero;
     }
@@ -198,7 +243,7 @@ public partial class MainWindow : Window
     // ==================== LIFECYCLE & LOW-POWER SLEEP ====================
 
     private void SystemEvents_DisplaySettingsChanged(object? sender, EventArgs e)
-        => Dispatcher.BeginInvoke(DispatcherPriority.Background, RepositionAndRedraw);
+        => Dispatcher.BeginInvoke(DispatcherPriority.Background, () => RepositionAndRedraw());
 
     private void SystemEvents_SessionSwitch(object sender, SessionSwitchEventArgs e)
     {
@@ -245,7 +290,8 @@ public partial class MainWindow : Window
         _batteryTick.Stop();
         _quotaTick.Stop();
         _weatherTick.Stop();
-        _collapseDelayTimer.Stop();
+        _hoverExpandTimer.Stop();
+        _hoverLeaveTimer.Stop();
         EnsureRenderLoop(false);
 
         try
@@ -276,25 +322,32 @@ public partial class MainWindow : Window
     public void ExpandIsland(bool pin = false)
     {
         if (_settings.ClickThrough) return;
-        _collapseDelayTimer.Stop();
+        _hoverExpandTimer.Stop();
+        _outsideHoverTicks = 0;
         if (pin)
         {
             _pinnedExpanded = true;
             UpdatePinVisual();
         }
         _isExpanded = true;
-        _targetProgress = 1.0;
+        _targetLinear = 1.0;
         _fastTick.Interval = TimeSpan.FromSeconds(1.0);
         SyncControlSliders();
+        // Start expand animation directly inside the already-allocated transparent canvas -> ZERO window resize flicker!
+        RepositionAndRedraw(forceWindowUpdate: false);
+        if (!_pinnedExpanded) _hoverLeaveTimer.Start();
         EnsureRenderLoop(true);
     }
 
     public void CollapseIsland()
     {
+        _hoverExpandTimer.Stop();
+        _hoverLeaveTimer.Stop();
+        _outsideHoverTicks = 0;
         _pinnedExpanded = false;
         UpdatePinVisual();
         _isExpanded = false;
-        _targetProgress = 0.0;
+        _targetLinear = 0.0;
         _fastTick.Interval = TimeSpan.FromSeconds(_settings.LowPowerMode ? 2.5 : 1.5);
         EnsureRenderLoop(true);
 
@@ -312,9 +365,10 @@ public partial class MainWindow : Window
     {
         bool petVisible = !_sessionPaused && !_hiddenByFullscreen &&
                           ((_isExpanded && _settings.ActiveTabIndex == 2) ||
-                           (!_isExpanded && EffectiveCollapsedMode() == "pet"));
+                           (!_isExpanded && _animLinear <= 0.001 && EffectiveCollapsedMode() == "pet"));
 
-        bool shouldHook = !_sessionPaused && (needActive || petVisible || _dripRadius > 0.4);
+        bool inTransition = Math.Abs(_targetLinear - _animLinear) > 0.0005;
+        bool shouldHook = !_sessionPaused && (needActive || inTransition || petVisible || _dripRadius > 0.4);
 
         if (shouldHook && !_renderHooked)
         {
@@ -337,35 +391,40 @@ public partial class MainWindow : Window
 
         bool animating = false;
 
-        // Smooth exponential spring toward _targetProgress
-        if (Math.Abs(_targetProgress - _animProgress) > 0.004)
+        // Deterministic linear-time transition (180ms exact, no lingering slow tail!)
+        if (Math.Abs(_targetLinear - _animLinear) > 0.0005)
         {
-            _animProgress += (_targetProgress - _animProgress) * Math.Min(1.0, dt * 15.0);
+            double step = dt / TransitionDurationSec;
+            if (_targetLinear > _animLinear)
+                _animLinear = Math.Min(_targetLinear, _animLinear + step);
+            else
+                _animLinear = Math.Max(_targetLinear, _animLinear - step);
+
             animating = true;
-        }
-        else if (_animProgress != _targetProgress)
-        {
-            _animProgress = _targetProgress;
-            animating = true;
+            if (_animLinear <= 0.0005 && _targetLinear == 0.0)
+            {
+                _animLinear = 0.0;
+            }
         }
 
         // Retracting liquid droplet after snapping off edge
         if (_dripRadius > 0.4)
         {
-            _dripRadius *= Math.Pow(0.04, dt);
-            if (_dripRadius <= 0.45) _dripRadius = 0;
+            _dripRadius *= Math.Pow(0.03, dt);
+            if (_dripRadius <= 0.45)
+                _dripRadius = 0;
             animating = true;
         }
 
         // Step pet eye-tracking only if visible
         var cursorDip = DualMonitorHelper.PhysicalToDipPoint(this, Forms.Cursor.Position);
-        if (!_isExpanded && EffectiveCollapsedMode() == "pet" && CollapsedPetFace.IsVisible)
+        if (!_isExpanded && _animLinear <= 0.001 && EffectiveCollapsedMode() == "pet" && CollapsedPetFace.IsVisible)
         {
             var center = CollapsedPetFace.PointToScreen(new Point(CollapsedPetFace.ActualWidth / 2, CollapsedPetFace.ActualHeight / 2));
             var centerDip = DualMonitorHelper.PhysicalToDipPoint(this, new System.Drawing.Point((int)center.X, (int)center.Y));
             CollapsedPetFace.StepFrame(cursorDip, centerDip, IsMouseOver);
         }
-        else if (_isExpanded && _settings.ActiveTabIndex == 2 && ExpandedPetFace.IsVisible)
+        else if (_isExpanded && _animLinear >= 0.99 && _settings.ActiveTabIndex == 2 && ExpandedPetFace.IsVisible)
         {
             var center = ExpandedPetFace.PointToScreen(new Point(ExpandedPetFace.ActualWidth / 2, ExpandedPetFace.ActualHeight / 2));
             var centerDip = DualMonitorHelper.PhysicalToDipPoint(this, new System.Drawing.Point((int)center.X, (int)center.Y));
@@ -374,7 +433,8 @@ public partial class MainWindow : Window
 
         if (animating)
         {
-            RepositionAndRedraw();
+            // Never resize Win32 window during expand/collapse frames -> 100% flicker-free!
+            RepositionAndRedraw(forceWindowUpdate: false);
         }
         else
         {
@@ -416,18 +476,21 @@ public partial class MainWindow : Window
         return _settings.CollapsedMode;
     }
 
-    private void RepositionAndRedraw()
+    private void RepositionAndRedraw() => RepositionAndRedraw(forceWindowUpdate: true);
+
+    private void RepositionAndRedraw(bool forceWindowUpdate)
     {
         if (_draggingIsland && _liquidDetached)
         {
-            // Free-floating pill while user drags across monitors!
             double freeW = CollapsedCapsuleWidth();
             double freeH = CollapsedHeight;
-            Width = freeW + 16;
-            Height = freeH + 16;
+            SetWindowBoundsAtomic(Left, Top, freeW + 16, freeH + 16);
             var freeRect = new Rect(8, 8, freeW, freeH);
             PlaceBody(freeRect);
+            LiquidSurface.Width = Width;
+            LiquidSurface.Height = Height;
             LiquidSurface.UpdateState(_palette, "Free", freeRect, freeH / 2.0);
+            _lastBodyScreenDip = new Rect(Left + freeRect.Left, Top + freeRect.Top, freeRect.Width, freeRect.Height);
             return;
         }
 
@@ -436,76 +499,145 @@ public partial class MainWindow : Window
         var workDip = DualMonitorHelper.PhysicalToDipRect(this, screen.WorkingArea);
 
         double colW = CollapsedCapsuleWidth();
-        double curW = Lerp(colW, ExpandedWidth, _animProgress);
-        double curH = Lerp(CollapsedHeight, ExpandedHeight, _animProgress);
-        double radius = Lerp(CollapsedHeight / 2.0, 20.0, _animProgress);
+        // Smooth asymmetric cubic easing: fast snap-open on expand, fast shrink-down on collapse
+        double eased = _targetLinear > 0.5
+            ? 1.0 - Math.Pow(1.0 - _animLinear, 3.0)
+            : Math.Pow(_animLinear, 2.2);
 
-        // Layer fade swap
-        if (_animProgress < 0.25)
+        double curW = Lerp(colW, ExpandedWidth, eased);
+        double curH = Lerp(CollapsedHeight, ExpandedHeight, eased);
+        double radius = Lerp(CollapsedHeight / 2.0, 20.0, eased);
+
+        // Asymmetric cross-fade: CollapsedLayer ONLY appears when the pill has already shrunk back to capsule size!
+        if (_animLinear <= 0.0005)
         {
             CollapsedLayer.Visibility = Visibility.Visible;
-            CollapsedLayer.Opacity = 1.0 - _animProgress * 4.0;
+            CollapsedLayer.Opacity = 1.0;
             ExpandedLayer.Visibility = Visibility.Collapsed;
+            ExpandedLayer.Opacity = 0.0;
         }
-        else
+        else if (_targetLinear > 0.5) // Expanding
         {
-            CollapsedLayer.Visibility = Visibility.Collapsed;
-            ExpandedLayer.Visibility = Visibility.Visible;
-            ExpandedLayer.Opacity = Math.Clamp((_animProgress - 0.25) / 0.75, 0, 1);
+            if (_animLinear < 0.22)
+            {
+                CollapsedLayer.Visibility = Visibility.Visible;
+                CollapsedLayer.Opacity = Math.Clamp(1.0 - _animLinear / 0.22, 0, 1);
+                ExpandedLayer.Visibility = Visibility.Collapsed;
+                ExpandedLayer.Opacity = 0.0;
+            }
+            else
+            {
+                CollapsedLayer.Visibility = Visibility.Collapsed;
+                CollapsedLayer.Opacity = 0.0;
+                ExpandedLayer.Visibility = Visibility.Visible;
+                ExpandedLayer.Opacity = Math.Clamp((_animLinear - 0.22) / 0.58, 0, 1);
+            }
+        }
+        else // Collapsing
+        {
+            if (_animLinear > 0.45)
+            {
+                ExpandedLayer.Visibility = Visibility.Visible;
+                ExpandedLayer.Opacity = Math.Clamp((_animLinear - 0.45) / 0.55, 0, 1);
+                CollapsedLayer.Visibility = Visibility.Collapsed;
+                CollapsedLayer.Opacity = 0.0;
+            }
+            else if (_animLinear > 0.16)
+            {
+                // Clean glass pill shrinking quickly without showing collapsed content inside a large box
+                ExpandedLayer.Visibility = Visibility.Collapsed;
+                ExpandedLayer.Opacity = 0.0;
+                CollapsedLayer.Visibility = Visibility.Collapsed;
+                CollapsedLayer.Opacity = 0.0;
+            }
+            else
+            {
+                ExpandedLayer.Visibility = Visibility.Collapsed;
+                ExpandedLayer.Opacity = 0.0;
+                CollapsedLayer.Visibility = Visibility.Visible;
+                CollapsedLayer.Opacity = Math.Clamp(1.0 - _animLinear / 0.16, 0, 1);
+            }
         }
 
         string edge = _settings.DockEdge;
         double pull = _draggingIsland ? _pullGap : 0;
-        double extraPullSpace = (pull > 0.5 || _dripRadius > 0.4) ? DragMarginPad : 4.0;
-
-        // Use WorkingArea for Bottom edge so we sit cleanly above taskbar, and Bounds/WorkingArea for Top/Left/Right
         Rect area = edge == "Bottom" ? workDip : boundsDip;
 
+        // Keep the transparent layered window at a constant max canvas size for the docked edge.
+        // In WPF AllowsTransparency=True, Alpha=0 pixels outside BodyContainer are natively click-through,
+        // so expand/collapse NEVER resizes the Win32 window -> 100% zero flicker!
+        double targetWinW, targetWinH, targetWinL, targetWinT;
+        if (edge is "Top" or "Bottom")
+        {
+            targetWinW = Math.Max(ExpandedWidth, colW) + 20;
+            targetWinH = Math.Max(ExpandedHeight + 16, CollapsedHeight + DragMarginPad);
+            double cx = area.Left + area.Width * _settings.EdgeRatio;
+            targetWinL = Math.Clamp(cx - targetWinW / 2.0, area.Left, area.Right - targetWinW);
+            targetWinT = edge == "Top" ? area.Top : (area.Bottom - targetWinH);
+        }
+        else
+        {
+            targetWinW = Math.Max(ExpandedWidth + 16, colW + DragMarginPad);
+            targetWinH = ExpandedHeight + 20;
+            double cy = workDip.Top + workDip.Height * _settings.EdgeRatio;
+            targetWinL = edge == "Left" ? area.Left : (area.Right - targetWinW);
+            targetWinT = Math.Clamp(cy - targetWinH / 2.0, workDip.Top, workDip.Bottom - targetWinH);
+        }
+
+        if (forceWindowUpdate || !_windowInCanvasMode || _draggingIsland)
+        {
+            _windowInCanvasMode = true;
+            if (Math.Abs(Left - targetWinL) > 0.5) Left = targetWinL;
+            if (Math.Abs(Top - targetWinT) > 0.5) Top = targetWinT;
+            if (Math.Abs(Width - targetWinW) > 0.5) Width = targetWinW;
+            if (Math.Abs(Height - targetWinH) > 0.5) Height = targetWinH;
+        }
+
+        // Compute exact bodyRect inside the fixed window canvas
+        double winW = Width;
+        double winH = Height;
         Rect bodyRect;
         if (edge == "Top")
         {
-            Width = curW + 16;
-            Height = curH + extraPullSpace;
             double cx = area.Left + area.Width * _settings.EdgeRatio;
-            Left = Math.Clamp(cx - Width / 2.0, area.Left, area.Right - Width);
-            Top = area.Top;
-            bodyRect = new Rect((Width - curW) / 2.0, pull, curW, curH);
+            double localCx = Math.Clamp(cx - Left, curW / 2.0 + 10, winW - curW / 2.0 - 10);
+            bodyRect = new Rect(localCx - curW / 2.0, pull, curW, curH);
         }
         else if (edge == "Bottom")
         {
-            Width = curW + 16;
-            Height = curH + extraPullSpace;
             double cx = area.Left + area.Width * _settings.EdgeRatio;
-            Left = Math.Clamp(cx - Width / 2.0, area.Left, area.Right - Width);
-            Top = area.Bottom - Height;
-            bodyRect = new Rect((Width - curW) / 2.0, Height - curH - pull, curW, curH);
+            double localCx = Math.Clamp(cx - Left, curW / 2.0 + 10, winW - curW / 2.0 - 10);
+            bodyRect = new Rect(localCx - curW / 2.0, winH - curH - pull, curW, curH);
         }
         else if (edge == "Left")
         {
-            Width = curW + extraPullSpace;
-            Height = curH + 16;
             double cy = workDip.Top + workDip.Height * _settings.EdgeRatio;
-            Left = area.Left;
-            Top = Math.Clamp(cy - Height / 2.0, workDip.Top, workDip.Bottom - Height);
-            bodyRect = new Rect(pull, (Height - curH) / 2.0, curW, curH);
+            double localCy = Math.Clamp(cy - Top, curH / 2.0 + 10, winH - curH / 2.0 - 10);
+            bodyRect = new Rect(pull, localCy - curH / 2.0, curW, curH);
         }
         else // Right
         {
-            Width = curW + extraPullSpace;
-            Height = curH + 16;
             double cy = workDip.Top + workDip.Height * _settings.EdgeRatio;
-            Left = area.Right - Width;
-            Top = Math.Clamp(cy - Height / 2.0, workDip.Top, workDip.Bottom - Height);
-            bodyRect = new Rect(Width - curW - pull, (Height - curH) / 2.0, curW, curH);
+            double localCy = Math.Clamp(cy - Top, curH / 2.0 + 10, winH - curH / 2.0 - 10);
+            bodyRect = new Rect(winW - curW - pull, localCy - curH / 2.0, curW, curH);
         }
 
         PlaceBody(bodyRect);
+        _lastBodyScreenDip = new Rect(Left + bodyRect.Left, Top + bodyRect.Top, bodyRect.Width, bodyRect.Height);
 
         double neckStrength = (_settings.LiquidEffect && pull > 0.5 && !_liquidDetached) ? 1.0 : 0.0;
-        double anchor = edge is "Top" or "Bottom" ? Width / 2.0 : Height / 2.0;
-        LiquidSurface.Width = Width;
-        LiquidSurface.Height = Height;
+        double anchor = edge is "Top" or "Bottom" ? (bodyRect.Left + bodyRect.Width / 2.0) : (bodyRect.Top + bodyRect.Height / 2.0);
+        LiquidSurface.Width = winW;
+        LiquidSurface.Height = winH;
         LiquidSurface.UpdateState(_palette, edge, bodyRect, radius, pull, neckStrength, _dripRadius, anchor);
+    }
+
+    private void SetWindowBoundsAtomic(double leftDip, double topDip, double widthDip, double heightDip)
+    {
+        if (Math.Abs(Left - leftDip) > 0.5) Left = leftDip;
+        if (Math.Abs(Top - topDip) > 0.5) Top = topDip;
+        if (Math.Abs(Width - widthDip) > 0.5) Width = widthDip;
+        if (Math.Abs(Height - heightDip) > 0.5) Height = heightDip;
     }
 
     private void PlaceBody(Rect r)
@@ -559,12 +691,14 @@ public partial class MainWindow : Window
         if (!_draggingIsland)
         {
             _draggingIsland = true;
+            _hoverExpandTimer.Stop();
+            _hoverLeaveTimer.Stop();
             if (_isExpanded)
             {
                 _isExpanded = false;
                 _pinnedExpanded = false;
-                _animProgress = 0;
-                _targetProgress = 0;
+                _animLinear = 0;
+                _targetLinear = 0;
             }
         }
 
@@ -701,21 +835,24 @@ public partial class MainWindow : Window
 
     // ==================== HOVER, WHEEL & FILE DROP ====================
 
-    private void RootCanvas_MouseEnter(object sender, MouseEventArgs e)
+    private void BodyContainer_MouseEnter(object sender, MouseEventArgs e)
     {
-        _collapseDelayTimer.Stop();
-        if (!_isExpanded && _settings.ExpandOnHover && !_settings.PinnedCollapsed && !_draggingIsland && !_settings.ClickThrough)
+        _outsideHoverTicks = 0;
+        if (!_isExpanded && _settings.ExpandOnHover && !_settings.PinnedCollapsed && !_draggingIsland && !_settings.ClickThrough && !_contextMenuOpen)
         {
-            ExpandIsland();
+            // Small intent delay (120ms) prevents accidental flash-open and lets user click small-window quick icons directly!
+            _hoverExpandTimer.Stop();
+            _hoverExpandTimer.Start();
         }
     }
 
-    private void RootCanvas_MouseLeave(object sender, MouseEventArgs e)
+    private bool IsCursorOverDirectActionButtons()
     {
-        if (_isExpanded && !_pinnedExpanded && !_draggingIsland)
-        {
-            _collapseDelayTimer.Start();
-        }
+        if (CompactQuickActionsBox.IsVisible && CompactQuickActionsBox.IsMouseOver)
+            return true;
+        if (CollapsedMediaPanel.IsVisible && ColPlayPauseBtn.IsMouseOver)
+            return true;
+        return false;
     }
 
     private void BodyContainer_MouseWheel(object sender, MouseWheelEventArgs e)
@@ -1196,7 +1333,7 @@ public partial class MainWindow : Window
 
         UpdateTabPillStyles();
         if (index == 4) SyncControlSliders();
-        EnsureRenderLoop(_animProgress > 0 && _animProgress < 1);
+        EnsureRenderLoop(_animLinear > 0 && _animLinear < 1);
     }
 
     private void UpdateTabPillStyles()
@@ -1552,6 +1689,8 @@ public partial class MainWindow : Window
     private void OpenContextMenu()
     {
         var menu = BuildTrayMenu();
+        _contextMenuOpen = true;
+        menu.Closed += (_, _) => _contextMenuOpen = false;
         menu.Show(Forms.Cursor.Position);
     }
 

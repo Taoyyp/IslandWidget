@@ -16,8 +16,6 @@
         FontFamily="Segoe UI Variable Text, Microsoft YaHei UI, Segoe UI">
 
     <Grid x:Name="RootCanvas" Background="Transparent"
-          MouseEnter="RootCanvas_MouseEnter"
-          MouseLeave="RootCanvas_MouseLeave"
           DragEnter="RootCanvas_DragEnter"
           DragOver="RootCanvas_DragOver"
           Drop="RootCanvas_Drop">
@@ -30,7 +28,9 @@
               HorizontalAlignment="Left"
               VerticalAlignment="Top"
               Width="460" Height="36"
+              ClipToBounds="True"
               Background="#01000000"
+              MouseEnter="BodyContainer_MouseEnter"
               MouseLeftButtonDown="BodyContainer_MouseLeftButtonDown"
               MouseMove="BodyContainer_MouseMove"
               MouseLeftButtonUp="BodyContainer_MouseLeftButtonUp"
@@ -178,7 +178,7 @@
             </Grid>
 
             <!-- ==================== EXPANDED DASHBOARD LAYER ==================== -->
-            <Grid x:Name="ExpandedLayer" Margin="14,12,14,12" Visibility="Collapsed" Opacity="0">
+            <Grid x:Name="ExpandedLayer" Width="508" Height="322" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,12,0,0" Visibility="Collapsed" Opacity="0">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
