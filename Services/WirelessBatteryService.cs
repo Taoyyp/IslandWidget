@@ -86,20 +86,20 @@ public sealed class WirelessBatteryService : IDisposable
         try
         {
             using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-            linkedCts.CancelAfter(TimeSpan.FromMilliseconds(2200));
+            linkedCts.CancelAfter(TimeSpan.FromMilliseconds(4200));
             var token = linkedCts.Token;
 
             var hidList = new List<WirelessDeviceStatus>();
             try
             {
-                await Task.Run(() => ReadHid24GDevices(hidList), token).WaitAsync(TimeSpan.FromMilliseconds(1500), ct).ConfigureAwait(false);
+                await Task.Run(() => ReadHid24GDevices(hidList), token).WaitAsync(TimeSpan.FromMilliseconds(1600), ct).ConfigureAwait(false);
             }
             catch { }
 
             var btList = new List<WirelessDeviceStatus>();
             try
             {
-                await ReadBluetoothDevicesAsync(btList, token).WaitAsync(TimeSpan.FromMilliseconds(1200), ct).ConfigureAwait(false);
+                await ReadBluetoothDevicesAsync(btList, token).WaitAsync(TimeSpan.FromMilliseconds(3500), ct).ConfigureAwait(false);
             }
             catch { }
 
@@ -205,6 +205,17 @@ public sealed class WirelessBatteryService : IDisposable
                 continue;
             }
 
+            // 3b. RK R98Pro V2 2.4G Receiver (258A:01BB / 258A:0233, 64-byte Output/Input report 0x0A, cmd 0x4A)
+            if (vid == 0x258A && pid is 0x01BB or 0x0233 && UsagePageMatches(info.UsagePage, 0xFF00) && info.InputLength >= 64 && info.OutputLength >= 64 && !seenGroups.Contains(groupKey))
+            {
+                var devKey = $"rk:{vid:X4}:{pid:X4}";
+                var pct = QueryRkSinowealthBattery(info);
+                var st = MergeWithLastKnown(devKey, "RK 无线键盘 (2.4G)", WirelessDeviceKind.Keyboard, "2.4G", pct, false);
+                results.Add(st);
+                seenGroups.Add(groupKey);
+                continue;
+            }
+
             // 4. Logitech HID++ 2.0 / 1.0 Receiver & Lightspeed (0x046D)
             if (vid == 0x046D && UsagePageMatches(info.UsagePage, 0xFF00) && info.InputLength == 20 && info.OutputLength == 20)
             {
@@ -237,11 +248,15 @@ public sealed class WirelessBatteryService : IDisposable
                 }
             }
 
-            // Track known 2.4G wireless dongles (e.g. 25A7:FA70 "2.4G Wireless Receiver" or product name containing "Wireless Receiver"/"Dongle")
+            // Track known 2.4G wireless dongles (e.g. 25A7:FA70 Royal Kludge RK 2.4G Receiver)
             if (!seenGroups.Contains(groupKey) && IsLikelyWirelessReceiver(vid, pid, info.ProductName))
             {
-                var kind = GuessKindFromName(info.ProductName, info.UsagePage, info.Usage);
-                if (!receiverFallbacks.ContainsKey(groupKey) || kind is WirelessDeviceKind.Keyboard or WirelessDeviceKind.Mouse)
+                var kind = (vid, pid) is (0x25A7, 0xFA70)
+                    ? WirelessDeviceKind.Keyboard
+                    : GuessKindFromName(info.ProductName, info.UsagePage, info.Usage);
+                if (!receiverFallbacks.TryGetValue(groupKey, out var existing) ||
+                    (existing.Kind != WirelessDeviceKind.Keyboard && kind == WirelessDeviceKind.Keyboard) ||
+                    (existing.Kind == WirelessDeviceKind.Receiver && kind != WirelessDeviceKind.Receiver))
                 {
                     receiverFallbacks[groupKey] = (vid, pid, ResolveFriendly24GName(vid, pid, info.ProductName, kind), kind);
                 }
@@ -358,6 +373,28 @@ public sealed class WirelessBatteryService : IDisposable
         }
         catch { }
         return (null, false);
+    }
+
+    private static int? QueryRkSinowealthBattery(HidCollectionInfo info)
+    {
+        try
+        {
+            using var dev = new OverlappedHidHandle(info.Path, info.InputLength, info.OutputLength, info.FeatureLength, readWrite: true);
+            dev.Flush();
+            var req = new byte[64];
+            req[0] = 0x0A; req[1] = 0x4A; // Battery command
+            dev.WriteOutput(req, 300);
+
+            long deadline = Environment.TickCount64 + 500;
+            while (Environment.TickCount64 < deadline)
+            {
+                var rep = dev.ReadInput((int)Math.Max(20, deadline - Environment.TickCount64));
+                if (rep is not null && rep.Length >= 7 && rep[0] == 0x0A && rep[1] == 0x4A && rep[5] is > 0 and <= 100)
+                    return rep[5];
+            }
+        }
+        catch { }
+        return null;
     }
 
     private static (int? Percent, bool Charging, string? Name) QueryLogitechHidppBattery(HidCollectionInfo info, int pid)
@@ -481,13 +518,22 @@ public sealed class WirelessBatteryService : IDisposable
                         if (bleDev is not null)
                         {
                             var svcs = await bleDev.GetGattServicesForUuidAsync(GattServiceUuids.Battery, BluetoothCacheMode.Cached).AsTask(ct).ConfigureAwait(false);
+                            if (svcs.Status != GattCommunicationStatus.Success || svcs.Services.Count == 0)
+                                svcs = await bleDev.GetGattServicesForUuidAsync(GattServiceUuids.Battery, BluetoothCacheMode.Uncached).AsTask(ct).ConfigureAwait(false);
+
                             if (svcs.Status == GattCommunicationStatus.Success && svcs.Services.Count > 0)
                             {
                                 using var svc = svcs.Services[0];
                                 var chars = await svc.GetCharacteristicsForUuidAsync(GattCharacteristicUuids.BatteryLevel, BluetoothCacheMode.Cached).AsTask(ct).ConfigureAwait(false);
+                                if (chars.Status != GattCommunicationStatus.Success || chars.Characteristics.Count == 0)
+                                    chars = await svc.GetCharacteristicsForUuidAsync(GattCharacteristicUuids.BatteryLevel, BluetoothCacheMode.Uncached).AsTask(ct).ConfigureAwait(false);
+
                                 if (chars.Status == GattCommunicationStatus.Success && chars.Characteristics.Count > 0)
                                 {
-                                    var readRes = await chars.Characteristics[0].ReadValueAsync(BluetoothCacheMode.Cached).AsTask(ct).ConfigureAwait(false);
+                                    var readRes = await chars.Characteristics[0].ReadValueAsync(BluetoothCacheMode.Uncached).AsTask(ct).ConfigureAwait(false);
+                                    if (readRes.Status != GattCommunicationStatus.Success)
+                                        readRes = await chars.Characteristics[0].ReadValueAsync(BluetoothCacheMode.Cached).AsTask(ct).ConfigureAwait(false);
+
                                     if (readRes.Status == GattCommunicationStatus.Success && readRes.Value is { Length: > 0 } buf)
                                     {
                                         var bytes = buf.ToArray();
@@ -584,7 +630,7 @@ public sealed class WirelessBatteryService : IDisposable
         return (vid, pid) switch
         {
             (0x3554, 0xF58E) => "VXE 无线鼠标 (1K)",
-            (0x25A7, 0xFA70) => "2.4G 无线键鼠接收器",
+            (0x25A7, 0xFA70) => "RK 无线键盘 (2.4G)",
             _ => kind switch
             {
                 WirelessDeviceKind.Mouse => "2.4G 无线鼠标",
@@ -623,7 +669,9 @@ public sealed class WirelessBatteryService : IDisposable
         var combined = $"{name} {category}";
         if (combined.Contains("Mouse", StringComparison.OrdinalIgnoreCase) || combined.Contains("鼠标"))
             return WirelessDeviceKind.Mouse;
-        if (combined.Contains("Keyboard", StringComparison.OrdinalIgnoreCase) || combined.Contains("键盘"))
+        if (combined.Contains("Keyboard", StringComparison.OrdinalIgnoreCase) ||
+            combined.Contains("键盘") ||
+            Regex.IsMatch(name, @"\b(RK\d|RK\s|Royal\s*Kludge|AULA|Keychron|HHKB|Filco|Leopold|Rainy|VGN|K75|K87|K98|F75|F87|F99)", RegexOptions.IgnoreCase))
             return WirelessDeviceKind.Keyboard;
         if (combined.Contains("Game", StringComparison.OrdinalIgnoreCase) || combined.Contains("Controller", StringComparison.OrdinalIgnoreCase) || combined.Contains("Xbox", StringComparison.OrdinalIgnoreCase))
             return WirelessDeviceKind.Gamepad;

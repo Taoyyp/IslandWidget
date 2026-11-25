@@ -1186,26 +1186,27 @@ public partial class MainWindow : Window
     private void BindWirelessDevicesUi(IReadOnlyList<WirelessDeviceStatus> devices)
     {
         // 1. Collapsed Battery Pill: pick primary device with battery%, or first connected receiver
+        var allSummary = string.Join("\n", devices.Select(d => $"{d.Name} ({d.ConnectionType}): {d.DisplayBattery}"));
         var primaryWithPct = devices.FirstOrDefault(d => d.BatteryPercent.HasValue);
         if (_settings.CompactShowBattery && primaryWithPct is not null)
         {
             ColBatBadge.Visibility = Visibility.Visible;
             ColBatIcon.Text = primaryWithPct.IconGlyph;
             ColBatText.Text = primaryWithPct.Charging ? $"⚡{primaryWithPct.BatteryPercent}%" : $"{primaryWithPct.BatteryPercent}%";
-            ColBatBadge.ToolTip = $"{primaryWithPct.Name} ({primaryWithPct.ConnectionType}): {primaryWithPct.DisplayBattery}（点击查看与刷新）";
+            ColBatBadge.ToolTip = allSummary + "\n（点击展开并刷新电量）";
         }
         else if (_settings.CompactShowBattery && devices.Count > 0)
         {
             ColBatBadge.Visibility = Visibility.Visible;
             ColBatIcon.Text = devices[0].IconGlyph;
             ColBatText.Text = devices[0].Asleep ? "休眠" : "2.4G";
-            ColBatBadge.ToolTip = $"{devices[0].Name} ({devices[0].ConnectionType}): {devices[0].DisplayBattery}（点击刷新）";
+            ColBatBadge.ToolTip = allSummary + "\n（点击展开并刷新电量）";
         }
         else
         {
             ColBatBadge.Visibility = Visibility.Collapsed;
         }
-        RepositionAndRedraw();
+        RepositionAndRedraw(forceWindowUpdate: false);
 
         // 2. Expanded Wireless Devices List
         WirelessDevicesList.Children.Clear();
