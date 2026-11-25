@@ -22,6 +22,7 @@ public sealed class AppSettings
     // Collapsed Mode ("overview", "clock", "media", "pet")
     public string CollapsedMode { get; set; } = "overview";
     public bool AutoShowLyrics { get; set; } = true;
+    public bool IncludeBrowserVideoMedia { get; set; } = false; // Default: only dedicated music players (ignore browser/video)
 
     // Collapsed Auto-Layout Module Toggles (click directly in collapsed state!)
     public bool CompactShowQuotas { get; set; } = true;

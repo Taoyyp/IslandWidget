@@ -1015,7 +1015,7 @@ public partial class MainWindow : Window
     private async Task PollMediaSafeAsync()
     {
         var prevMode = EffectiveCollapsedMode();
-        _lastMedia = await _mediaService.PollAsync();
+        _lastMedia = await _mediaService.PollAsync(_settings.IncludeBrowserVideoMedia);
         var nextMode = EffectiveCollapsedMode();
 
         if (prevMode != nextMode)
@@ -1057,8 +1057,10 @@ public partial class MainWindow : Window
             }
             else
             {
-                ExpSongTitle.Text = "暂无正在播放的媒体";
-                ExpSongArtist.Text = "支持网易云 / QQ音乐 / Spotify / 浏览器视频";
+                ExpSongTitle.Text = "暂无正在播放的音乐";
+                ExpSongArtist.Text = _settings.IncludeBrowserVideoMedia
+                    ? "支持音乐软件 / 浏览器视频 (SMTC)"
+                    : "默认仅识别音乐软件（网易云 / QQ / 酷狗 / Spotify 等）";
                 ExpMediaAppBadge.Text = "";
                 ExpLyricMain.Text = "♪ 播放音乐时自动同步滚动双语歌词";
                 ExpLyricTrans.Text = "";
@@ -1782,6 +1784,7 @@ public partial class MainWindow : Window
             _settings.LiquidEffect = updated.LiquidEffect;
             _settings.ExpandOnHover = updated.ExpandOnHover;
             _settings.AutoShowLyrics = updated.AutoShowLyrics;
+            _settings.IncludeBrowserVideoMedia = updated.IncludeBrowserVideoMedia;
             _settings.CompactShowQuotas = updated.CompactShowQuotas;
             _settings.CompactShowHardware = updated.CompactShowHardware;
             _settings.CompactShowBattery = updated.CompactShowBattery;

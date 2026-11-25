@@ -63,7 +63,7 @@ public sealed class MediaLyricsService : IDisposable
         _http.DefaultRequestHeaders.TryAddWithoutValidation("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)");
     }
 
-    public async Task<MediaTrackSnapshot> PollAsync(CancellationToken ct = default)
+    public async Task<MediaTrackSnapshot> PollAsync(bool includeBrowserVideo = false, CancellationToken ct = default)
     {
         if (_disposed) return Current;
         try
@@ -78,7 +78,7 @@ public sealed class MediaLyricsService : IDisposable
         // 1. Check NetEase local log (gives exact millisecond position & songId without needing SMTC plugin)
         var ne = _netease.PollSnapshot();
         var sessions = _manager?.GetSessions();
-        var bestSmtc = ChooseBestSession(sessions);
+        var bestSmtc = ChooseBestSession(sessions, includeBrowserVideo);
 
         bool smtcPlaying = false;
         string smtcAppId = "";
@@ -222,11 +222,60 @@ public sealed class MediaLyricsService : IDisposable
         catch { }
     }
 
-    private static GlobalSystemMediaTransportControlsSession? ChooseBestSession(IReadOnlyList<GlobalSystemMediaTransportControlsSession>? sessions)
+    private static readonly string[] DedicatedMusicApps =
+    [
+        "cloudmusic", "qqmusic", "kugou", "kwmusic", "kuwo", "spotify", "applemusic", "itunes",
+        "yesplaymusic", "lx-music", "lxmusic", "soda", "qishui", "foobar", "musicbee", "aimp",
+        "zunemusic", "tidal", "deezer", "cider", "hyplayer", "feeluown", "listen1", "migu", "music"
+    ];
+
+    private static readonly string[] IgnoredVideoOrBrowserApps =
+    [
+        "chrome", "msedge", "edge", "firefox", "brave", "opera", "vivaldi", "arc", "zen",
+        "browser", "bilibili", "douyin", "potplayer", "vlc", "mpv", "iqiyi", "youku",
+        "qqlive", "tencentvideo", "kodi", "video", "movies", "netflix", "primevideo", "tiktok"
+    ];
+
+    private static bool IsAllowedSession(GlobalSystemMediaTransportControlsSession session, bool includeBrowserVideo)
+    {
+        if (includeBrowserVideo) return true;
+        var id = (session.SourceAppUserModelId ?? "").ToLowerInvariant();
+        if (string.IsNullOrWhiteSpace(id)) return false;
+
+        // Explicitly reject browsers & video players first
+        foreach (var blocked in IgnoredVideoOrBrowserApps)
+        {
+            if (id.Contains(blocked, StringComparison.Ordinal))
+                return false;
+        }
+
+        // Accept dedicated music players (or audio-only PlaybackType == Music if not a browser/video app)
+        foreach (var music in DedicatedMusicApps)
+        {
+            if (id.Contains(music, StringComparison.Ordinal))
+                return true;
+        }
+
+        try
+        {
+            var pb = session.GetPlaybackInfo();
+            if (pb?.PlaybackType == Windows.Media.MediaPlaybackType.Music)
+                return true;
+        }
+        catch { }
+
+        return false;
+    }
+
+    private static GlobalSystemMediaTransportControlsSession? ChooseBestSession(
+        IReadOnlyList<GlobalSystemMediaTransportControlsSession>? sessions, bool includeBrowserVideo)
     {
         if (sessions is null || sessions.Count == 0) return null;
-        string[] prio = ["cloudmusic", "qqmusic", "spotify", "applemusic", "bilibili", "msedge", "chrome"];
-        return sessions
+        var filtered = sessions.Where(s => IsAllowedSession(s, includeBrowserVideo)).ToList();
+        if (filtered.Count == 0) return null;
+
+        string[] prio = ["cloudmusic", "qqmusic", "kugou", "spotify", "applemusic", "yesplaymusic", "lx-music", "foobar"];
+        return filtered
             .Select(s =>
             {
                 bool playing = false;
@@ -246,14 +295,20 @@ public sealed class MediaLyricsService : IDisposable
         var low = appId.ToLowerInvariant();
         if (low.Contains("cloudmusic")) return "网易云音乐";
         if (low.Contains("qqmusic")) return "QQ音乐";
+        if (low.Contains("kugou")) return "酷狗音乐";
+        if (low.Contains("kwmusic") || low.Contains("kuwo")) return "酷我音乐";
         if (low.Contains("spotify")) return "Spotify";
+        if (low.Contains("applemusic") || low.Contains("itunes")) return "Apple Music";
+        if (low.Contains("yesplaymusic")) return "YesPlayMusic";
+        if (low.Contains("lx-music") || low.Contains("lxmusic")) return "洛雪音乐";
+        if (low.Contains("foobar")) return "foobar2000";
         if (low.Contains("bilibili")) return "哔哩哔哩";
         if (low.Contains("msedge")) return "Edge";
         if (low.Contains("chrome")) return "Chrome";
         if (low.Contains("firefox")) return "Firefox";
-        var name = appId.Split(['!', '\\', '/']).LastOrDefault() ?? "媒体";
+        var name = appId.Split(['!', '\\', '/']).LastOrDefault() ?? "音乐";
         if (name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)) name = name[..^4];
-        return string.IsNullOrWhiteSpace(name) ? "媒体" : name;
+        return string.IsNullOrWhiteSpace(name) ? "音乐" : name;
     }
 
     private async Task LoadUrlCoverAsync(string expectedKey, string url)

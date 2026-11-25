@@ -82,6 +82,7 @@
                             <CheckBox x:Name="LiquidCheck" Content="启用液态拉丝边缘动效" Foreground="#E2E8F0" Margin="0,0,18,8"/>
                             <CheckBox x:Name="HoverExpandCheck" Content="鼠标悬停自动展开" Foreground="#E2E8F0" Margin="0,0,18,8"/>
                             <CheckBox x:Name="AutoLyricsCheck" Content="播歌时收起态自动显示歌词" Foreground="#E2E8F0" Margin="0,0,18,8"/>
+                            <CheckBox x:Name="BrowserVideoCheck" Content="允许捕获浏览器/视频媒体（默认仅音乐软件）" Foreground="#E2E8F0" Margin="0,0,18,8"/>
                             <CheckBox x:Name="FullscreenHideCheck" Content="全屏游戏/视频自动隐藏" Foreground="#E2E8F0" Margin="0,0,18,8"/>
                             <CheckBox x:Name="LowPowerCheck" Content="极致低占用模式（静止0帧渲染）" Foreground="#E2E8F0" Margin="0,0,18,8"/>
                             <CheckBox x:Name="PauseLockCheck" Content="锁屏/睡眠暂停后台采集" Foreground="#E2E8F0" Margin="0,0,18,8"/>

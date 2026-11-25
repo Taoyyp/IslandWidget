@@ -35,7 +35,7 @@
    - **Xbox / XInput 手柄**：读取无线游戏手柄电池档位。
 
 6. **音乐歌词 · 剪贴板中转 · 天气小形象 · Clash 系快捷控制**
-   - **音乐与滚动歌词**：同时支持 Windows SMTC（QQ 音乐、Spotify、浏览器/B 站视频等）与网易云音乐本地日志无插件解码，自动匹配双语 LRC 歌词。
+   - **音乐与滚动歌词**：同时支持 Windows SMTC 与网易云音乐本地日志无插件解码，默认仅识别音乐播放器（网易云 / QQ 音乐 / 酷狗 / 酷我 / Spotify / Apple Music / 洛雪 / foobar2000 等，自动过滤浏览器和视频播放器，可在设置中按需开启），自动匹配双语 LRC 歌词。
    - **剪贴板与拖拽文件中转站**：基于 `WM_CLIPBOARDUPDATE` 事件驱动（零轮询）记录最近 15 条文字/图片，点击即复制；任意文件拖到灵动岛自动展开暂存，支持随时拖出或一键复制全部文件。
    - **免 Key 天气与发光小形象**：内置 Open-Meteo 实时天气与 5 日预报；附带视线追随鼠标、靠近随机变换表情、点击捏脸的发光双眼小形象。
    - **快捷系统控制**：CoreAudio 系统音量/静音、DDC/CI 显示器亮度、蓝牙开关、以及 **Clash 系代理客户端（FlClash / Clash Verge / Clash Nyanpasu / Mihomo Party / Clash for Windows / v2rayN 等）自动识别与一键系统代理开关**。
